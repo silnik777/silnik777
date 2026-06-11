@@ -1,0 +1,46 @@
+[project]
+name = "gas-rd-tool"
+version = "0.1.0"
+description = "Narzędzie obliczeniowo-analityczne do oceny projektów B+R w dystrybucji gazu (PSG): właściwości gazów, sprężanie, gazociągi, ekspandery, ekonomia, emisje, benchmarking."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+dependencies = [
+    "CoolProp>=6.6",
+    "streamlit>=1.38",
+    "plotly>=5.20",
+    "pandas>=2.2",
+    "numpy>=1.26",
+    "PyYAML>=6.0",
+    "openpyxl>=3.1",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "black>=24.0",
+    "ruff>=0.5",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["core"]

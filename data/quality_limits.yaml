@@ -1,0 +1,25 @@
+meta:
+  description: >
+    Progi jakościowe paliwa gazowego dla flag zgodności (moduł M1):
+    liczba Wobbego dla gazu grupy E oraz analizowane progi udziału wodoru.
+    Progi %H2 to wartości scenariuszowe do analiz B+R, nie limity prawne.
+  updated: "2026-06-11"
+
+wobbe_index_group_E:
+  # Górna liczba Wobbego, warunki odniesienia 25°C/0°C [MJ/m³]
+  nominal_mj_per_m3: 54.0
+  min_mj_per_m3: 45.0
+  max_mj_per_m3: 56.9
+  source: >
+    Rozporządzenie Ministra Gospodarki z 2.07.2010 r. w sprawie szczegółowych
+    warunków funkcjonowania systemu gazowego (Dz.U. 2010 nr 133 poz. 891,
+    z późn. zm.); IRiESD PSG.
+  note: "Do weryfikacji z aktualną wersją IRiESD przed użyciem decyzyjnym."
+
+hydrogen_blend_thresholds:
+  # Scenariuszowe progi udziału molowego H2 w mieszaninie z gazem ziemnym [%]
+  analysis_levels_mol_pct: [2, 5, 10, 15, 20]
+  source: >
+    Wartości scenariuszowe stosowane w analizach europejskich (np. raporty
+    Marcogaz/GERG dot. domieszek H2); w Polsce brak wiążącego limitu.
+  note: "Wartość orientacyjna — do weryfikacji; progi edytowalne w UI."

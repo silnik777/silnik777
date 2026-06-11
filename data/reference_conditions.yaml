@@ -1,0 +1,12 @@
+meta:
+  description: >
+    Warunki odniesienia dla objętości gazu i wartości kalorycznych.
+    Wartości liczbowe są zdefiniowane w core/units.py (stałe normowe);
+    ten plik określa, które warunki są domyślne w UI.
+  updated: "2026-06-11"
+  source: "ISO 6976:2016; ISO 13443:1996; PN-C-04750"
+
+defaults:
+  # Klucz z core.units.REFERENCE_CONDITIONS: 0C | 15C | 25C
+  volume_reference: "0C"        # podstawa Nm³ w polskim gazownictwie
+  combustion_reference: "25C"   # temperatura odniesienia spalania (ISO 6976)

@@ -1,0 +1,14 @@
+# Zależności produkcyjne (silnik obliczeniowy + UI)
+CoolProp>=6.6
+streamlit>=1.38
+plotly>=5.20
+pandas>=2.2
+numpy>=1.26
+PyYAML>=6.0
+openpyxl>=3.1
+python-dotenv>=1.0
+
+# Narzędzia deweloperskie
+pytest>=8.0
+black>=24.0
+ruff>=0.5
