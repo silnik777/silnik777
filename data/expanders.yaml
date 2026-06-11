@@ -1,0 +1,107 @@
+meta:
+  description: >
+    Biblioteka technologii ekspanderów do odzysku energii z redukcji ciśnienia:
+    sprawności izentropowe (min/typ/max), mapy stosowalności (przepływ, stosunek
+    rozprężania na maszynę, zakres mocy), CAPEX/kW, TRL. Wartości orientacyjne
+    z syntezy literatury — do weryfikacji ofertami producentów.
+  updated: "2026-06-11"
+  source: >
+    Synteza: Kostowski W., Usón S., "Comparative evaluation of a natural gas
+    expansion plant..." Energy 56 (2013); Poredoš A. i in.; przeglądy
+    turboekspanderów sieciowych (np. Cryostar, GE oil&gas, RMG/Honeywell);
+    dane producentów maszyn śrubowych i scroll.
+
+defaults:
+  # Margines (pinch) wymiennika podgrzewu gazu względem temperatury zasilania
+  # źródła ciepła [K].
+  preheater_pinch_k: 10.0
+  # Margines bezpieczeństwa nad równowagową temperaturą hydratów [K].
+  hydrate_margin_k: 3.0
+  hydrate_margin_source: "Praktyka inżynierska 3–5 K (Mokhatab, Handbook of NG Transmission)"
+
+technologies:
+  turboekspander:
+    name_pl: "turboekspander (promieniowy)"
+    eta:
+      min: 0.75
+      typical: 0.80
+      max: 0.85
+    max_expansion_ratio: 5.0
+    expansion_ratio_range: [1.5, 5.0]
+    flow_range_nm3_per_h: [1000, 200000]
+    power_range_kw: [50, 15000]
+    capex_eur_per_kw:
+      min: 1500
+      typical: 2000
+      max: 3000
+    trl: 9
+    h2_note: "Referencje dla GZ; dla H2/mieszanin wymagana adaptacja (TRL 5–7)."
+    source: "Kostowski 2013; dane producentów; wartość orientacyjna — do weryfikacji"
+  srubowy:
+    name_pl: "ekspander śrubowy"
+    eta:
+      min: 0.50
+      typical: 0.60
+      max: 0.70
+    max_expansion_ratio: 6.0
+    expansion_ratio_range: [2.0, 6.0]
+    flow_range_nm3_per_h: [200, 20000]
+    power_range_kw: [20, 1000]
+    capex_eur_per_kw:
+      min: 1200
+      typical: 1800
+      max: 2500
+    trl: 8
+    h2_note: "Konstrukcyjnie tolerancyjny na zmienny skład; mało referencji H2."
+    source: "Literatura odzysku energii w stacjach red.; wartość orientacyjna — do weryfikacji"
+  roots:
+    name_pl: "ekspander Rootsa (krzywkowy)"
+    eta:
+      min: 0.40
+      typical: 0.50
+      max: 0.60
+    max_expansion_ratio: 3.0
+    expansion_ratio_range: [1.2, 3.0]
+    flow_range_nm3_per_h: [100, 5000]
+    power_range_kw: [5, 200]
+    capex_eur_per_kw:
+      min: 1000
+      typical: 1500
+      max: 2000
+    trl: 7
+    h2_note: "Prosta konstrukcja, niskie sprężenia; pojedyncze wdrożenia."
+    source: "Wartość orientacyjna — do weryfikacji"
+  tlokowy:
+    name_pl: "ekspander tłokowy"
+    eta:
+      min: 0.60
+      typical: 0.70
+      max: 0.75
+    max_expansion_ratio: 10.0
+    expansion_ratio_range: [3.0, 10.0]
+    flow_range_nm3_per_h: [50, 3000]
+    power_range_kw: [10, 500]
+    capex_eur_per_kw:
+      min: 1500
+      typical: 2200
+      max: 3000
+    trl: 7
+    h2_note: "Duże stosunki rozprężania w jednej maszynie; niska prędkość obrotowa."
+    source: "Wartość orientacyjna — do weryfikacji"
+  scroll:
+    name_pl: "ekspander scroll"
+    eta:
+      min: 0.50
+      typical: 0.55
+      max: 0.65
+    max_expansion_ratio: 4.0
+    expansion_ratio_range: [1.5, 4.0]
+    flow_range_nm3_per_h: [10, 500]
+    power_range_kw: [1, 50]
+    capex_eur_per_kw:
+      min: 2000
+      typical: 3000
+      max: 4000
+    trl: 6
+    h2_note: "Mikro-skala (stacje domowe/osiedlowe); wdrożenia pilotażowe."
+    source: "Wartość orientacyjna — do weryfikacji"

@@ -221,6 +221,7 @@ def pressure_profile(
     state = _abstract_state(composition)
     state.specify_phase(CP.iphase_gas)
     wilke_mu: float | None = None
+    last_mu: float | None = None
 
     p = pressure_in_pa
     try:
@@ -232,12 +233,21 @@ def pressure_profile(
                 try:
                     mu = state.viscosity()
                 except Exception:
-                    wilke_mu = _wilke_viscosity_pa_s(composition, temperature_k)
-                    mu = wilke_mu
-                    warnings.append(
-                        "Lepkość mieszaniny z reguły Wilke'a (1950) przy ciśnieniu "
-                        "atmosferycznym — przybliżenie niskociśnieniowe."
-                    )
+                    mu = float("nan")
+                if not math.isfinite(mu):
+                    # Model ECS lepkości mieszanin potrafi punktowo zwrócić NaN
+                    # (bez wyjątku) — bierzemy wartość z sąsiedniego segmentu
+                    # (zmiana < 1%/segment), a bez niej regułę Wilke'a.
+                    if last_mu is not None:
+                        mu = last_mu
+                    else:
+                        wilke_mu = _wilke_viscosity_pa_s(composition, temperature_k)
+                        mu = wilke_mu
+                        warnings.append(
+                            "Lepkość mieszaniny z reguły Wilke'a (1950) przy ciśnieniu "
+                            "atmosferycznym — przybliżenie niskociśnieniowe."
+                        )
+                last_mu = mu
             else:
                 mu = wilke_mu
             reynolds = rho * velocity * diameter_m / mu

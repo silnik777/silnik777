@@ -1,0 +1,79 @@
+meta:
+  description: >
+    Predefiniowane warianty stacji redukcyjnych (edytowalne w UI) oraz źródła
+    ciepła do podgrzewu gazu przed redukcją/ekspansją. Temperatura zasilania
+    źródła ogranicza osiągalną temperaturę podgrzewu gazu (pinch wymiennika
+    w data/expanders.yaml). Ceny energii: wartości robocze do prostego
+    porównania wariantów — pełne ścieżki cenowe w module M5.
+  updated: "2026-06-11"
+
+station_presets:
+  stopien_I:
+    name_pl: "Stacja I° (sieć wysokiego ciśn.): 5,5 → 1,7 MPa"
+    p_in_mpa: 5.5
+    p_out_mpa: 1.7
+    t_in_c: 10.0
+    source: "Typowe ciśnienia PSG — do podmiany na rzeczywiste wartości stacji."
+  stopien_II:
+    name_pl: "Stacja II° (śr. ciśnienie): 1,7 → 0,4 MPa"
+    p_in_mpa: 1.7
+    p_out_mpa: 0.4
+    t_in_c: 10.0
+    source: "Typowe ciśnienia PSG — do podmiany."
+  podwyzszone_srednie:
+    name_pl: "Z podwyższonego średniego: 8,0 → 0,4 MPa"
+    p_in_mpa: 8.0
+    p_out_mpa: 0.4
+    t_in_c: 10.0
+    source: "Wariant wskazany przez użytkownika — do podmiany."
+
+# UWAGA INTEGRACYJNA: poniższa lista to roboczy podzbiór źródeł ciepła.
+# Docelowo (etap 5) kanonicznym źródłem technologii podgrzewu będzie
+# biblioteka modułu M7 (charakterystyki wytwarzania): kocioł kondensacyjny,
+# silnik kogeneracyjny, kolektor słoneczny, grzałka/pompa ciepła zasilana
+# z PV itd. — wraz z temperaturami zasilania, sprawnościami i kosztami;
+# M13 będzie z niej czytał te parametry, a ciepło odpadowe sprężarek
+# pozostanie pozycją z M2.
+heat_sources:
+  kociol_gazowy:
+    name_pl: "kocioł wodny gazowy (90/70 °C)"
+    supply_temp_c: 90.0
+    efficiency_hi: 0.92
+    energy_carrier: "gaz"
+    source: "Typowy kocioł stacji red.-pom.; sprawność wg Hi"
+  kogeneracja:
+    name_pl: "kogeneracja gazowa (woda 90/70 °C)"
+    supply_temp_c: 90.0
+    efficiency_hi: 0.90
+    energy_carrier: "gaz"
+    source: "Ciepło z modułu CHP; szczegóły technologii w M7"
+    note: "Wartość orientacyjna — do weryfikacji."
+  cieplo_odpadowe_sprezarek:
+    name_pl: "ciepło odpadowe sprężarek (60–80 °C)"
+    supply_temp_c: 70.0
+    efficiency_hi: 1.0
+    energy_carrier: "odpadowe"
+    source: "Poziomy temperatur z chłodnic międzystopniowych (M2)"
+    note: "Dostępność zależna od pracy sprężarek; koszt krańcowy ~0."
+  pompa_ciepla:
+    name_pl: "pompa ciepła (zasilanie 60 °C, COP 3,0)"
+    supply_temp_c: 60.0
+    cop: 3.0
+    energy_carrier: "energia_elektryczna"
+    source: "COP 2,5–3,5 dla źródła gruntowego/powietrznego przy 60 °C"
+    note: "Wartość orientacyjna — do weryfikacji."
+  elektryczny:
+    name_pl: "podgrzew elektryczny (do 95 °C)"
+    supply_temp_c: 95.0
+    cop: 1.0
+    energy_carrier: "energia_elektryczna"
+    source: "Grzałki przepływowe"
+
+# Robocze ceny energii do prostego porównania wariantów (edytowalne w UI;
+# docelowo scenariusze cenowe M5).
+working_prices_pln_per_mwh:
+  energia_elektryczna: 550.0
+  gaz: 250.0
+  odpadowe: 20.0
+  source: "Wartości robocze rzędu cen 2024/2025 — orientacyjne, do edycji"
+  note: "Wartość orientacyjna — do weryfikacji; pełne ścieżki cenowe w M5."

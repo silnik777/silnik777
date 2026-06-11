@@ -30,7 +30,13 @@ import CoolProp.CoolProp as CP
 
 from core.composition import GasComposition
 from core.config import load_data_file
-from core.gas_properties import _abstract_state, compute_properties, update_state_pt
+from core.gas_properties import (
+    _abstract_state,
+    compute_properties,
+    flash_ph,
+    flash_ps,
+    update_state_pt,
+)
 from core.units import NORMAL_0C, j_to_kwh
 
 #: Liczba podkroków całkowania politropowego (zbieżność < 0,05% dla r ≤ 4).
@@ -99,30 +105,6 @@ def applicable_technologies(
 
 
 # --- Pomocnicze flashe -------------------------------------------------------
-
-
-def _flash_gas(state: CP.AbstractState, pair: int, v1: float, v2: float) -> None:
-    """Flash CoolProp z wymuszoną fazą gazową.
-
-    Stosowany wewnątrz stopni sprężania: jeśli ssanie jest w fazie gazowej
-    (pełna kontrola stabilności na wejściu ``compress``), to sprężany,
-    gorący gaz pozostaje gazem — pominięcie analizy stabilności faz skraca
-    flash mieszanin ~500× bez zmiany wyniku.
-    """
-    state.specify_phase(CP.iphase_gas)
-    try:
-        state.update(pair, v1, v2)
-        return
-    except Exception:
-        # Solver jednofazowy bywa zawodny (np. flash p-s czystego H2 przy
-        # wysokim ciśnieniu) — fallback do pełnego flashu ze stabilnością faz.
-        state.unspecify_phase()
-        try:
-            state.update(pair, v1, v2)
-        except Exception as exc:
-            raise ValueError(
-                f"Flash termodynamiczny nie powiódł się. Szczegóły CoolProp: {exc}"
-            ) from exc
 
 
 # --- Praca sprężania ---------------------------------------------------------
@@ -247,14 +229,16 @@ def _isentropic_stage(
     """Praca i temperatura wylotowa stopnia izentropowego ze sprawnością η_s.
 
     w_s = h(p2, s1) − h1;  w = w_s/η_s;  T2 z flashu (h1 + w, p2).
-    Flashe z wymuszoną fazą gazową (kontrola stabilności: raz, w ``compress``).
+    Flashe w fazie gazowej (kontrola stabilności: raz, w ``compress``);
+    mieszaniny: ``flash_ps``/``flash_ph`` (bisekcja po T — patrz M1).
     """
-    _flash_gas(state, CP.PT_INPUTS, pressure_in_pa, temperature_in_k)
+    state.specify_phase(CP.iphase_gas)
+    state.update(CP.PT_INPUTS, pressure_in_pa, temperature_in_k)
     h1, s1 = state.hmass(), state.smass()
-    _flash_gas(state, CP.PSmass_INPUTS, pressure_out_pa, s1)
+    flash_ps(state, pressure_out_pa, s1)
     h2s = state.hmass()
     work = (h2s - h1) / eta_isentropic
-    _flash_gas(state, CP.HmassP_INPUTS, h1 + work, pressure_out_pa)
+    flash_ph(state, pressure_out_pa, h1 + work)
     return work, state.T()
 
 

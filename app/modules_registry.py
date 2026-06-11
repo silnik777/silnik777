@@ -10,7 +10,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from app.views import m01_gas_properties, m02_compression, m03_pipeline
+from app.views import (
+    m01_gas_properties,
+    m02_compression,
+    m03_pipeline,
+    m04_expanders,
+    m13_cold_reduction,
+)
 
 
 @dataclass(frozen=True)
@@ -86,6 +92,7 @@ MODULES: list[ModuleInfo] = [
         ),
         stage=3,
         icon="⚙️",
+        render=m04_expanders.render,
     ),
     ModuleInfo(
         code="M13",
@@ -99,6 +106,7 @@ MODULES: list[ModuleInfo] = [
         ),
         stage=3,
         icon="❄️",
+        render=m13_cold_reduction.render,
     ),
     ModuleInfo(
         code="M12",

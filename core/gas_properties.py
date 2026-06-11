@@ -133,6 +133,106 @@ def update_state_pt(state: CP.AbstractState, pressure_pa: float, temperature_k: 
             ) from exc
 
 
+def _solve_temperature_gas(
+    state: CP.AbstractState,
+    pressure_pa: float,
+    target_value: float,
+    prop: str,
+    t_lo_k: float = 200.0,
+    t_hi_k: float = 800.0,
+    tol_k: float = 1e-4,
+) -> None:
+    """Rozwiązuje T tak, by h(p,T) lub s(p,T) = wartość zadana (faza gazowa).
+
+    Bisekcja na szybkich flashach (p,T) z wymuszoną fazą gazową — entalpia
+    i entropia są monotonicznie rosnące po T przy stałym p (cp > 0), więc
+    pierwiastek jest jednoznaczny. Stosowane dla mieszanin, dla których
+    natywne flashe h-p / p-s CoolProp wymagają budowy otoczki fazowej.
+    Dolny kraniec przedziału jest podnoszony, jeśli flash gazowy nie ma tam
+    rozwiązania (obszar gęstej fazy).
+    """
+    getter = CP.AbstractState.hmass if prop == "h" else CP.AbstractState.smass
+    state.specify_phase(CP.iphase_gas)
+
+    def value_at(t_k: float) -> float:
+        state.update(CP.PT_INPUTS, pressure_pa, t_k)
+        return getter(state)
+
+    v_lo: float | None = None
+    for _ in range(25):
+        try:
+            v_lo = value_at(t_lo_k)
+            break
+        except Exception:
+            t_lo_k += 15.0
+    if v_lo is None:
+        raise ValueError("Nie znaleziono dolnego krańca przedziału temperatur (flash gazowy).")
+    # Cel poniżej dolnego krańca (głęboka ekspansja): schodź w dół, dopóki
+    # flash gazowy ma rozwiązanie (nad linią nasycenia).
+    while target_value < v_lo and t_lo_k > 95.0:
+        try:
+            v_lo = value_at(t_lo_k - 10.0)
+            t_lo_k -= 10.0
+        except Exception:
+            break
+    try:
+        v_hi = value_at(t_hi_k)
+    except Exception:
+        t_hi_k = 600.0
+        v_hi = value_at(t_hi_k)
+
+    if not v_lo <= target_value <= v_hi:
+        raise ValueError(
+            f"Wartość docelowa ({prop}) poza przedziałem temperatur "
+            f"{t_lo_k:.0f}–{t_hi_k:.0f} K przy p = {pressure_pa / 1e5:.2f} bar "
+            "(możliwa kondensacja przy głębokiej ekspansji)."
+        )
+    while t_hi_k - t_lo_k > tol_k:
+        t_mid = (t_lo_k + t_hi_k) / 2.0
+        if value_at(t_mid) < target_value:
+            t_lo_k = t_mid
+        else:
+            t_hi_k = t_mid
+    value_at(t_hi_k)  # stan końcowy
+
+
+def _flash_native_gas_first(state: CP.AbstractState, pair: int, v1: float, v2: float) -> None:
+    """Natywny flash CoolProp: najpierw z fazą gazową, fallback pełny."""
+    state.specify_phase(CP.iphase_gas)
+    try:
+        state.update(pair, v1, v2)
+        return
+    except Exception:
+        state.unspecify_phase()
+        try:
+            state.update(pair, v1, v2)
+        except Exception as exc:
+            raise ValueError(
+                f"Flash termodynamiczny nie powiódł się. Szczegóły CoolProp: {exc}"
+            ) from exc
+
+
+def flash_ph(state: CP.AbstractState, pressure_pa: float, h_target_j_per_kg: float) -> None:
+    """Flash (p, h): czyste płyny natywnie; mieszaniny — bisekcja po T.
+
+    Natywny flash h-p CoolProp dla mieszanin wymaga zbudowanej otoczki
+    fazowej (kosztowna i zawodna dla składów z H2) — zamiast tego
+    rozwiązujemy h(p,T) = h* w fazie gazowej (``_solve_temperature_gas``).
+    """
+    if len(state.fluid_names()) == 1:
+        _flash_native_gas_first(state, CP.HmassP_INPUTS, h_target_j_per_kg, pressure_pa)
+    else:
+        _solve_temperature_gas(state, pressure_pa, h_target_j_per_kg, "h")
+
+
+def flash_ps(state: CP.AbstractState, pressure_pa: float, s_target_j_per_kg_k: float) -> None:
+    """Flash (p, s): czyste płyny natywnie; mieszaniny — bisekcja po T."""
+    if len(state.fluid_names()) == 1:
+        _flash_native_gas_first(state, CP.PSmass_INPUTS, pressure_pa, s_target_j_per_kg_k)
+    else:
+        _solve_temperature_gas(state, pressure_pa, s_target_j_per_kg_k, "s")
+
+
 def _range_warnings(pressure_pa: float, temperature_k: float) -> list[str]:
     warnings: list[str] = []
     if pressure_pa > DEFAULT_P_MAX_PA:
@@ -189,14 +289,13 @@ def compute_properties(
             "Analiza stabilności faz CoolProp zawiodła dla tej mieszaniny — "
             "przyjęto fazę gazową bez kontroli kondensacji (zweryfikuj punkt rosy)."
         )
-    elif state.phase() not in (
-        CP.iphase_gas,
-        CP.iphase_supercritical_gas,
-        CP.iphase_supercritical,
-    ):
+    elif state.phase() in (CP.iphase_twophase, CP.iphase_liquid):
+        # Klasyfikacja faz CoolProp dla mieszanin powyżej ciśnienia
+        # pseudokrytycznego bywa niejednoznaczna ("unknown") — ostrzegamy
+        # tylko przy jednoznacznie wykrytej cieczy / obszarze dwufazowym.
         warnings.append(
-            "Uwaga: punkt pracy nie jest jednoznacznie w fazie gazowej "
-            "(możliwa kondensacja cięższych składników)."
+            "Uwaga: punkt pracy w obszarze dwufazowym lub ciekłym "
+            "(kondensacja cięższych składników)."
         )
 
     density = state.rhomass()
@@ -205,6 +304,14 @@ def compute_properties(
     method = "CoolProp"
     try:
         viscosity = state.viscosity()
+        if not math.isfinite(viscosity):
+            # Model ECS lepkości mieszanin punktowo zwraca NaN bez wyjątku —
+            # ponawiamy z minimalną perturbacją temperatury (+0,02 K).
+            update_state_pt(state, pressure_pa, temperature_k + 0.02)
+            viscosity = state.viscosity()
+            update_state_pt(state, pressure_pa, temperature_k)
+            if not math.isfinite(viscosity):
+                raise ValueError("Lepkość ECS zwraca NaN.")
     except Exception:
         try:
             viscosity = _wilke_viscosity_pa_s(composition, temperature_k)

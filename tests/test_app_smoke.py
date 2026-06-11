@@ -27,6 +27,7 @@ def _render_view(module_name: str) -> AppTest:
 def test_m01_page_renders_without_exception():
     at = _render_view("m01_gas_properties")
     assert not at.exception
+    assert not at.error, [e.value for e in at.error]
     assert at.title[0].value.startswith("M1")
     # Strona pokazuje metryki kaloryczne i flagi jakości dla gazu E
     assert any("Wobbego" in (s.body or "") for s in at.success)
@@ -35,10 +36,26 @@ def test_m01_page_renders_without_exception():
 def test_m02_page_renders_without_exception():
     at = _render_view("m02_compression")
     assert not at.exception
+    assert not at.error, [e.value for e in at.error]
     assert at.title[0].value.startswith("M2")
 
 
 def test_m03_page_renders_without_exception():
     at = _render_view("m03_pipeline")
     assert not at.exception
+    assert not at.error, [e.value for e in at.error]
     assert at.title[0].value.startswith("M3")
+
+
+def test_m04_page_renders_without_exception():
+    at = _render_view("m04_expanders")
+    assert not at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert at.title[0].value.startswith("M4")
+
+
+def test_m13_page_renders_without_exception():
+    at = _render_view("m13_cold_reduction")
+    assert not at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert at.title[0].value.startswith("M13")
