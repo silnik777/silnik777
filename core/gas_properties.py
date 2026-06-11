@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from functools import cache
 
 import CoolProp.CoolProp as CP
 
@@ -58,8 +59,14 @@ class GasProperties:
         return self.joule_thomson_k_per_pa * 1.0e5
 
 
+@cache
 def _abstract_state(composition: GasComposition) -> CP.AbstractState:
-    """Buduje stan CoolProp HEOS dla składu (czysty płyn lub mieszanina)."""
+    """Stan CoolProp HEOS dla składu (cache per skład — budowa jest kosztowna).
+
+    Uwaga: obiekt jest współdzielony i mutowalny — każdy użytkownik musi
+    wykonać własny flash (``update_state_pt``/``state.update``) przed odczytem.
+    Nie nadaje się do użycia współbieżnego z wielu wątków.
+    """
     registry = components_registry()
     names = [registry[key].coolprop_name for key, _ in composition.fractions]
     state = CP.AbstractState("HEOS", "&".join(names))
@@ -109,6 +116,7 @@ def update_state_pt(state: CP.AbstractState, pressure_pa: float, temperature_k: 
     Raises:
         ValueError: gdy flash zawodzi także po wymuszeniu fazy (komunikat PL).
     """
+    state.unspecify_phase()  # stan może być współdzielony (cache) — reset
     try:
         state.update(CP.PT_INPUTS, pressure_pa, temperature_k)
         return False

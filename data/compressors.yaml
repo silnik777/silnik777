@@ -1,0 +1,107 @@
+meta:
+  description: >
+    Biblioteka technologii sprężarek: sprawności (min/typowa/max), mapy
+    stosowalności (przepływ, spręż na stopień, ciśnienie tłoczenia), TRL,
+    przydatność do H2. Wartości są syntezą literatury — orientacyjne,
+    do weryfikacji przy decyzjach inwestycyjnych.
+  updated: "2026-06-11"
+  source: >
+    Synteza: GPSA Engineering Data Book (14. wyd.); IEA "The Future of
+    Hydrogen" (2019); DNV "Hydrogen Forecast to 2050" (2022); Sdanghi G. i in.,
+    "Review of the current technologies and performances of hydrogen
+    compression", Renew. Sust. Energy Rev. 102 (2019); materiały producentów
+    (Burckhardt, Neuman & Esser, Linde, Howden).
+
+defaults:
+  # Limit temperatury tłoczenia (typowy dla sprężarek wyporowych; dla H2
+  # często ostrzejszy ze względu na materiały/uszczelnienia).
+  t_discharge_limit_c: 150.0
+  t_discharge_limit_source: "GPSA: typ. 135–180 °C; H2: zalecane <135 °C"
+  # Temperatura chłodzenia międzystopniowego (powrót do temp. ssania).
+  intercooling_approach_note: "domyślnie chłodzenie do temperatury ssania"
+
+technologies:
+  tlokowa:
+    name_pl: "tłokowa (recip.)"
+    efficiency_model: "izentropowa"
+    eta:
+      min: 0.75
+      typical: 0.85
+      max: 0.90
+    max_pressure_ratio_per_stage: 4.0
+    pressure_ratio_per_stage_range: [2.0, 4.0]
+    max_discharge_pressure_mpa: 30.0
+    flow_range_nm3_per_h: [50, 50000]
+    h2_ready: true
+    h2_note: "Standard w sprężaniu H2 (wykonanie bezolejowe, pierścienie suche)."
+    trl: 9
+    capex_note: "CAPEX/kW — biblioteka kosztowa w etapie 6 (M10)."
+    source: "GPSA; Sdanghi 2019; wartość orientacyjna — do weryfikacji"
+  srubowa:
+    name_pl: "śrubowa"
+    efficiency_model: "izentropowa"
+    eta:
+      min: 0.60
+      typical: 0.70
+      max: 0.80
+    max_pressure_ratio_per_stage: 8.0
+    pressure_ratio_per_stage_range: [2.0, 10.0]
+    max_discharge_pressure_mpa: 4.0
+    flow_range_nm3_per_h: [100, 20000]
+    h2_ready: false
+    h2_note: >
+      Ograniczona przydatność do H2 (przecieki w szczelinach, olej w gazie);
+      wykonania bezolejowe mają niższy spręż na stopień.
+    trl: 9
+    source: "GPSA; wartość orientacyjna — do weryfikacji"
+  odsrodkowa:
+    name_pl: "odśrodkowa (promieniowa)"
+    efficiency_model: "politropowa"
+    eta:
+      min: 0.75
+      typical: 0.82
+      max: 0.87
+    max_pressure_ratio_per_stage: 2.0
+    pressure_ratio_per_stage_range: [1.2, 2.0]
+    max_discharge_pressure_mpa: 15.0
+    flow_range_nm3_per_h: [5000, 1000000]
+    h2_ready: false
+    h2_note: >
+      Dla H2 przyrost entalpii na koło jest ~10× mniejszy niż dla GZ (mała
+      masa molowa) — wymagane liczne stopnie i bardzo wysokie obroty;
+      TRL 6–7 dla czystego H2 (rurociągowe w rozwoju).
+    trl: 9
+    source: "GPSA; DNV 2022; wartość orientacyjna — do weryfikacji"
+  membranowa:
+    name_pl: "membranowa (diaphragm)"
+    efficiency_model: "izentropowa"
+    eta:
+      min: 0.70
+      typical: 0.80
+      max: 0.85
+    max_pressure_ratio_per_stage: 10.0
+    pressure_ratio_per_stage_range: [3.0, 15.0]
+    max_discharge_pressure_mpa: 100.0
+    flow_range_nm3_per_h: [10, 1000]
+    h2_ready: true
+    h2_note: "Idealna dla H2 wysokiej czystości (gaz oddzielony membraną od napędu)."
+    trl: 9
+    source: "Sdanghi 2019; materiały producentów; wartość orientacyjna — do weryfikacji"
+  ciecz_jonowa:
+    name_pl: "tłokowa z cieczą jonową"
+    efficiency_model: "izentropowa"
+    eta:
+      min: 0.60
+      typical: 0.70
+      max: 0.80
+    max_pressure_ratio_per_stage: 10.0
+    pressure_ratio_per_stage_range: [3.0, 12.0]
+    max_discharge_pressure_mpa: 100.0
+    flow_range_nm3_per_h: [10, 1500]
+    h2_ready: true
+    h2_note: >
+      Sprężanie quasi-izotermiczne (ciecz jonowa chłodzi gaz w cylindrze) —
+      niska energia właściwa mimo umiarkowanej sprawności izentropowej;
+      stosowana w stacjach tankowania H2 (np. Linde IC90).
+    trl: 8
+    source: "Sdanghi 2019; Linde; wartość orientacyjna — do weryfikacji"

@@ -1,0 +1,44 @@
+meta:
+  description: >
+    Parametry gazociągów: chropowatości bezwzględne materiałów rur,
+    limity prędkości. Wartości typowe z literatury — orientacyjne.
+  updated: "2026-06-11"
+  source: "Literatura hydrauliki przepływów (Moody/Colebrook); praktyka gazownicza"
+
+roughness_mm:
+  stal:
+    name_pl: "stal (eksploatowana)"
+    typical: 0.05
+    range: [0.02, 0.10]
+    source: "Wartości typowe dla stali handlowej (Moody): nowa 0,045 mm"
+  pe_nowe:
+    name_pl: "PE100 (nowe)"
+    typical: 0.007
+    range: [0.0015, 0.01]
+    source: "Literatura: PE k ≈ 0,0015–0,01 mm"
+  hdpe_starsze:
+    name_pl: "HDPE (starsze, eksploatowane)"
+    typical: 0.02
+    range: [0.01, 0.05]
+    source: "Szacunek dla rur PE po latach eksploatacji (osady, owalizacja)"
+    note: "Wartość orientacyjna — do weryfikacji pomiarami spadków ciśnień."
+
+velocity_limits_m_per_s:
+  dystrybucja_sredniego_cisnienia:
+    name_pl: "sieć dystrybucyjna śr. ciśnienia"
+    max: 20.0
+    source: "Praktyka projektowa (10–20 m/s); ograniczenie hałasu i erozji"
+    note: "Wartość orientacyjna — limity wg standardów technicznych operatora."
+  przesyl:
+    name_pl: "gazociąg wysokiego ciśnienia"
+    max: 20.0
+    source: "Praktyka projektowa; API RP 14E (prędkość erozyjna)"
+    note: "Wartość orientacyjna — do weryfikacji."
+
+flow_model:
+  min_outlet_pressure_bar: 1.1
+  default_segments: 50
+  note: >
+    Model marszowy: rura dzielona na segmenty, w każdym lokalne ρ, μ z M1
+    (GERG-2008), tarcie Darcy-Weisbach + Colebrook-White; przepływ izotermiczny
+    (rura zakopana). Dokładniejszy niż wzory Panhandle/Weymouth.
