@@ -54,6 +54,20 @@ def test_m04_page_renders_without_exception():
     assert at.title[0].value.startswith("M4")
 
 
+def test_m05_page_renders_without_exception():
+    at = _render_view("m05_prices")
+    assert not at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert at.title[0].value.startswith("M5")
+
+
+def test_m08_page_renders_without_exception():
+    at = _render_view("m08_emissions")
+    assert not at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert at.title[0].value.startswith("M8")
+
+
 def test_m13_page_renders_without_exception():
     at = _render_view("m13_cold_reduction")
     assert not at.exception

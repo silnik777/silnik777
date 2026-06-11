@@ -15,6 +15,8 @@ from app.views import (
     m02_compression,
     m03_pipeline,
     m04_expanders,
+    m05_prices,
+    m08_emissions,
     m13_cold_reduction,
 )
 
@@ -132,6 +134,7 @@ MODULES: list[ModuleInfo] = [
         ),
         stage=4,
         icon="📈",
+        render=m05_prices.render,
     ),
     ModuleInfo(
         code="M8-M9",
@@ -144,6 +147,7 @@ MODULES: list[ModuleInfo] = [
         ),
         stage=4,
         icon="🌍",
+        render=m08_emissions.render,
     ),
     ModuleInfo(
         code="M6",

@@ -65,7 +65,7 @@ literatura — pełna lista w `tests/reference_data.py`).
 | 1 | M1 — właściwości gazów i mieszanin + testy walidacyjne | ✅ |
 | 2 | M2 — sprężanie, M3 — gazociągi | ✅ |
 | 3 | M4 — ekspandery, M13 — zimna redukcja (hydraty, źródła ciepła) | ✅ |
-| 4 | M5 — ścieżki cenowe, M8–M9 — emisje | 🔜 |
+| 4 | M5 — ścieżki cenowe, M8–M9 — emisje | ✅ |
 | 5 | M6 — produkcja wodoru, M7 — charakterystyki wytwarzania | 🔜 |
 | 6 | M10 — ekonomia, M11 — benchmarking, M12 — linepack | 🔜 |
 | 7 | M14 — karta projektu, eksporty XLSX/CSV/PDF, dokumentacja wdrożenia | 🔜 |

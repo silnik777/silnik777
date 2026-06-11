@@ -1,0 +1,82 @@
+meta:
+  description: >
+    Scenariusze cenowe (niski/bazowy/wysoki) do 2050: nośniki energii
+    [PLN/MWh wg wartości opałowej], uprawnienia EU ETS i ETS2 [EUR/t CO2]
+    oraz emisyjność miksu elektroenergetycznego PL [t CO2/MWh].
+    Punkty kotwiczne interpolowane liniowo. WSZYSTKIE wartości orientacyjne —
+    rzędy wielkości z rynku 2024/25 i publicznych trajektorii (IEA WEO,
+    KOBiZE, notowania EUA); do regularnej aktualizacji i edycji w UI.
+    Scenariusze użytkownika: zapis do data/user_scenarios/*.json.
+  updated: "2026-06-11"
+  source: >
+    Synteza: TGE (gaz, energia elektryczna — rzędy wielkości 2024/25);
+    IEA World Energy Outlook 2024 (trajektorie); notowania EUA (ICE);
+    KOBiZE — wskaźniki emisyjności energii elektrycznej; IEA Global
+    Hydrogen Review (koszty H2). Wartości orientacyjne — do weryfikacji.
+  note: "Wartość orientacyjna — do weryfikacji przed użyciem decyzyjnym."
+
+defaults:
+  eur_pln: 4.30
+  eur_pln_source: "Kurs roboczy — do aktualizacji"
+
+# Jednostki: nośniki energii PLN/MWh (Hi); CO2: EUR/t; miks: t CO2/MWh el.
+carriers:
+  gaz_ziemny:
+    name_pl: "gaz ziemny (hurt, TGE)"
+    unit: "PLN/MWh"
+  energia_elektryczna:
+    name_pl: "energia elektryczna (hurt)"
+    unit: "PLN/MWh"
+  wodor:
+    name_pl: "wodór odnawialny (koszt dostawy)"
+    unit: "PLN/MWh"
+  biometan:
+    name_pl: "biometan"
+    unit: "PLN/MWh"
+  biomasa:
+    name_pl: "biomasa (zrębka)"
+    unit: "PLN/MWh"
+  eua:
+    name_pl: "EU ETS (EUA)"
+    unit: "EUR/t CO2"
+  ets2:
+    name_pl: "ETS2 (budynki/transport, od 2027)"
+    unit: "EUR/t CO2"
+  emisyjnosc_miksu:
+    name_pl: "emisyjność miksu elektroenergetycznego PL"
+    unit: "t CO2/MWh"
+
+scenarios:
+  bazowy:
+    name_pl: "bazowy"
+    paths:
+      gaz_ziemny: {2025: 200, 2030: 215, 2040: 235, 2050: 245}
+      energia_elektryczna: {2025: 450, 2030: 420, 2040: 380, 2050: 350}
+      wodor: {2025: 650, 2030: 480, 2040: 360, 2050: 300}
+      biometan: {2025: 360, 2030: 350, 2040: 330, 2050: 320}
+      biomasa: {2025: 120, 2030: 125, 2040: 135, 2050: 140}
+      eua: {2025: 75, 2030: 100, 2040: 140, 2050: 180}
+      ets2: {2026: 0, 2027: 45, 2030: 60, 2040: 100, 2050: 150}
+      emisyjnosc_miksu: {2025: 0.66, 2030: 0.50, 2035: 0.35, 2040: 0.20, 2050: 0.05}
+  niski:
+    name_pl: "niski (tanie paliwa / szybka dekarbonizacja miksu)"
+    paths:
+      gaz_ziemny: {2025: 150, 2030: 160, 2040: 175, 2050: 185}
+      energia_elektryczna: {2025: 350, 2030: 320, 2040: 280, 2050: 250}
+      wodor: {2025: 520, 2030: 380, 2040: 280, 2050: 230}
+      biometan: {2025: 300, 2030: 290, 2040: 275, 2050: 270}
+      biomasa: {2025: 100, 2030: 105, 2040: 110, 2050: 115}
+      eua: {2025: 60, 2030: 75, 2040: 100, 2050: 120}
+      ets2: {2026: 0, 2027: 35, 2030: 45, 2040: 70, 2050: 100}
+      emisyjnosc_miksu: {2025: 0.62, 2030: 0.42, 2035: 0.25, 2040: 0.12, 2050: 0.02}
+  wysoki:
+    name_pl: "wysoki (drogie paliwa / wolna dekarbonizacja miksu)"
+    paths:
+      gaz_ziemny: {2025: 280, 2030: 300, 2040: 330, 2050: 350}
+      energia_elektryczna: {2025: 600, 2030: 560, 2040: 520, 2050: 500}
+      wodor: {2025: 800, 2030: 620, 2040: 480, 2050: 400}
+      biometan: {2025: 420, 2030: 410, 2040: 395, 2050: 390}
+      biomasa: {2025: 145, 2030: 150, 2040: 165, 2050: 175}
+      eua: {2025: 100, 2030: 150, 2040: 220, 2050: 300}
+      ets2: {2026: 0, 2027: 60, 2030: 90, 2040: 150, 2050: 220}
+      emisyjnosc_miksu: {2025: 0.70, 2030: 0.58, 2035: 0.45, 2040: 0.32, 2050: 0.15}

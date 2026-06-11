@@ -29,3 +29,6 @@ htmlcov/
 exports/
 *.xlsx
 !data/**/*.xlsx
+
+# Scenariusze użytkownika (dane robocze, nie wersjonujemy)
+data/user_scenarios/*.json

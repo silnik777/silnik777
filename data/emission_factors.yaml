@@ -1,0 +1,36 @@
+meta:
+  description: >
+    Współczynniki emisji (M8–M9): GWP wg IPCC AR6 (WG1, tab. 7.15),
+    referencyjne wskaźniki spalania (IPCC/KOBiZE) — podstawową metodą
+    narzędzia jest jednak obliczenie STECHIOMETRYCZNE ze składu gazu (M1).
+  updated: "2026-06-11"
+
+gwp:
+  CH4_kopalny:
+    name_pl: "metan kopalny (z gazu ziemnego)"
+    gwp100: 29.8
+    gwp20: 82.5
+    source: "IPCC AR6 WG1, tab. 7.15 (CH4-fossil)"
+  CH4_biogeniczny:
+    name_pl: "metan biogeniczny (biometan/biogaz)"
+    gwp100: 27.0
+    gwp20: 80.8
+    source: "IPCC AR6 WG1, tab. 7.15 (CH4-non-fossil)"
+    note: "W literaturze cytowane 27,0–27,2 / 79,7–80,8 — do weryfikacji."
+  N2O:
+    name_pl: "podtlenek azotu"
+    gwp100: 273.0
+    gwp20: 273.0
+    source: "IPCC AR6 WG1, tab. 7.15"
+
+reference_combustion_factors:
+  gaz_ziemny_kg_co2_per_gj:
+    value: 56.1
+    source: "IPCC 2006 Guidelines (domyślny dla gazu ziemnego, wg Hi)"
+    note: >
+      Wartość referencyjna do porównania — narzędzie liczy stechiometrycznie
+      ze składu (KOBiZE 2023 dla PL: ~55,6–55,9 kg CO2/GJ).
+
+scope_notes:
+  zakres_1: "emisje bezpośrednie: spalanie paliwa, ucieczki CH4 (stechiometria + GWP)"
+  zakres_2: "emisje pośrednie: energia elektryczna wg emisyjności miksu (ścieżka M5)"
