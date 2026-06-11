@@ -1,0 +1,107 @@
+meta:
+  description: >
+    Biblioteka technologii produkcji wodoru (M6): elektrolizery AEL/PEM/
+    SOEC/AEM, SMR+CCS, piroliza metanu. Wartości orientacyjne wg IEA Global
+    Hydrogen Review 2023/2024 i IEA "The Future of Hydrogen" (2019),
+    uzupełnione DNV Hydrogen Forecast 2022 — do weryfikacji ofertami.
+    Zużycie energii odniesione do 1 kg H2 (Hi(H2) = 33,33 kWh/kg).
+  updated: "2026-06-11"
+  source: "IEA Global Hydrogen Review 2023/2024; IEA 2019; DNV 2022"
+  note: "Wartość orientacyjna — do weryfikacji."
+
+technologies:
+  AEL:
+    name_pl: "elektroliza alkaliczna (AEL)"
+    electricity_kwh_per_kg: {min: 50.0, typical: 52.0, max: 56.0}
+    fuel_gas_kwh_per_kg: 0.0
+    water_l_per_kg: {min: 9.0, typical: 15.0, max: 22.0}
+    part_load_pct: [15, 100]
+    degradation_pct_per_year: {min: 0.25, typical: 0.5, max: 1.0}
+    stack_lifetime_h: [60000, 90000]
+    capex_eur_per_kw_el: {min: 800, typical: 1000, max: 1400}
+    opex_pct_capex_per_year: 3.0
+    pressure_out_bar: 30.0
+    purity_pct: 99.9
+    purity_note: "Po doczyszczeniu (deoxo+osuszanie): 99,999%"
+    direct_co2_kg_per_kg_h2: 0.0
+    trl: 9
+    source: "IEA GHR 2023 (system, BoP włącznie)"
+  PEM:
+    name_pl: "elektroliza PEM"
+    electricity_kwh_per_kg: {min: 52.0, typical: 55.0, max: 60.0}
+    fuel_gas_kwh_per_kg: 0.0
+    water_l_per_kg: {min: 9.0, typical: 14.0, max: 20.0}
+    part_load_pct: [5, 120]
+    degradation_pct_per_year: {min: 0.5, typical: 1.0, max: 2.0}
+    stack_lifetime_h: [50000, 80000]
+    capex_eur_per_kw_el: {min: 1000, typical: 1400, max: 1800}
+    opex_pct_capex_per_year: 3.0
+    pressure_out_bar: 30.0
+    purity_pct: 99.999
+    direct_co2_kg_per_kg_h2: 0.0
+    trl: 9
+    source: "IEA GHR 2023"
+  SOEC:
+    name_pl: "elektroliza stałotlenkowa (SOEC)"
+    electricity_kwh_per_kg: {min: 37.0, typical: 40.0, max: 43.0}
+    fuel_gas_kwh_per_kg: 0.0
+    heat_kwh_per_kg: 8.0
+    heat_note: "Para ~150–200 °C — idealna integracja z ciepłem odpadowym"
+    water_l_per_kg: {min: 9.0, typical: 10.0, max: 13.0}
+    part_load_pct: [30, 100]
+    degradation_pct_per_year: {min: 1.0, typical: 2.0, max: 3.0}
+    stack_lifetime_h: [20000, 40000]
+    capex_eur_per_kw_el: {min: 2500, typical: 3000, max: 4500}
+    opex_pct_capex_per_year: 4.0
+    pressure_out_bar: 5.0
+    purity_pct: 99.9
+    direct_co2_kg_per_kg_h2: 0.0
+    trl: 7
+    source: "IEA GHR 2023 (demonstracje); CAPEX silnie malejący"
+  AEM:
+    name_pl: "elektroliza AEM"
+    electricity_kwh_per_kg: {min: 53.0, typical: 57.0, max: 62.0}
+    fuel_gas_kwh_per_kg: 0.0
+    water_l_per_kg: {min: 9.0, typical: 14.0, max: 20.0}
+    part_load_pct: [5, 100]
+    degradation_pct_per_year: {min: 1.0, typical: 2.0, max: 3.0}
+    stack_lifetime_h: [5000, 35000]
+    capex_eur_per_kw_el: {min: 800, typical: 1200, max: 1600}
+    opex_pct_capex_per_year: 3.5
+    pressure_out_bar: 35.0
+    purity_pct: 99.9
+    direct_co2_kg_per_kg_h2: 0.0
+    trl: 6
+    source: "IEA GHR 2023 (wczesna komercjalizacja, małe moce)"
+  SMR_CCS:
+    name_pl: "reforming parowy + CCS (SMR+CCS)"
+    electricity_kwh_per_kg: {min: 1.5, typical: 2.5, max: 4.0}
+    fuel_gas_kwh_per_kg: {min: 42.0, typical: 45.0, max: 50.0}
+    water_l_per_kg: {min: 5.0, typical: 7.0, max: 10.0}
+    part_load_pct: [50, 100]
+    degradation_pct_per_year: {min: 0.0, typical: 0.2, max: 0.5}
+    stack_lifetime_h: [150000, 250000]
+    capex_eur_per_kw_h2: {min: 600, typical: 800, max: 1200}
+    opex_pct_capex_per_year: 4.0
+    pressure_out_bar: 25.0
+    purity_pct: 99.97
+    direct_co2_kg_per_kg_h2: {min: 0.5, typical: 1.0, max: 1.5}
+    capture_note: "Sprawność wychwytu 90–95% (bez CCS: ~9–10 kg CO2/kg H2)"
+    trl: 8
+    source: "IEA GHR 2023; zużycie gazu wg Hi"
+  piroliza:
+    name_pl: "piroliza metanu (turkusowy H2)"
+    electricity_kwh_per_kg: {min: 8.0, typical: 10.0, max: 14.0}
+    fuel_gas_kwh_per_kg: {min: 52.0, typical: 58.0, max: 65.0}
+    water_l_per_kg: {min: 0.0, typical: 1.0, max: 2.0}
+    part_load_pct: [50, 100]
+    degradation_pct_per_year: {min: 0.5, typical: 1.0, max: 2.0}
+    stack_lifetime_h: [40000, 80000]
+    capex_eur_per_kw_h2: {min: 800, typical: 1100, max: 1800}
+    opex_pct_capex_per_year: 4.0
+    pressure_out_bar: 10.0
+    purity_pct: 99.9
+    direct_co2_kg_per_kg_h2: 0.0
+    byproduct_note: "Produkt uboczny: węgiel stały ~3 kg C/kg H2 (potencjalny przychód)"
+    trl: 5
+    source: "IEA GHR 2023 (pilotaże); duży rozrzut parametrów"

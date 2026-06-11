@@ -1,0 +1,227 @@
+meta:
+  description: >
+    Biblioteka technologii wytwarzania ciepła i energii elektrycznej (M7) —
+    benchmark od paliw kopalnych po bezemisyjne. Sprawności wg wartości
+    opałowej (Hi); dla pomp ciepła "sprawność cieplna" = COP sezonowy.
+    Wartości orientacyjne wg katalogów Danish Energy Agency (Technology
+    Data for Generation of Electricity and District Heating / Individual
+    Heating), IEA WEO oraz danych producentów — do weryfikacji.
+    Technologie cieplne zasilają listę źródeł podgrzewu w M13.
+  updated: "2026-06-11"
+  source: "Danish Energy Agency Technology Data (2023/24); IEA WEO 2024"
+  note: "Wartość orientacyjna — do weryfikacji."
+
+# category: cieplo | energia_elektryczna | kogeneracja
+# fuel: klucz nośnika z M5 (gaz_ziemny, biomasa, wodor, energia_elektryczna,
+#       wegiel) albo zasób darmowy (slonce, wiatr)
+# emission_class: kopalne | alternatywne | niskoemisyjne | bezemisyjne
+technologies:
+  kociol_gazowy_kondensacyjny:
+    name_pl: "kocioł gazowy kondensacyjny"
+    category: "cieplo"
+    fuel: "gaz_ziemny"
+    eta_heat: {min: 0.97, typical: 1.03, max: 1.08}
+    eta_heat_note: "Sprawność wg Hi > 1 dzięki kondensacji pary wodnej ze spalin"
+    supply_temp_c: 80.0
+    scale_range_kw: [10, 20000]
+    capex_eur_per_kw: {min: 60, typical: 110, max: 250}
+    trl: 9
+    emission_class: "kopalne"
+    source: "DEA Individual/DH Heating"
+  kociol_gazowy:
+    name_pl: "kocioł gazowy (niekondensacyjny)"
+    category: "cieplo"
+    fuel: "gaz_ziemny"
+    eta_heat: {min: 0.88, typical: 0.92, max: 0.95}
+    supply_temp_c: 95.0
+    scale_range_kw: [10, 50000]
+    capex_eur_per_kw: {min: 50, typical: 90, max: 200}
+    trl: 9
+    emission_class: "kopalne"
+    source: "DEA"
+  kociol_weglowy:
+    name_pl: "kocioł węglowy (referencja)"
+    category: "cieplo"
+    fuel: "wegiel"
+    eta_heat: {min: 0.78, typical: 0.84, max: 0.90}
+    supply_temp_c: 110.0
+    scale_range_kw: [100, 100000]
+    capex_eur_per_kw: {min: 150, typical: 250, max: 450}
+    trl: 9
+    emission_class: "kopalne"
+    source: "DEA; referencja do wypierania"
+  kociol_biomasowy:
+    name_pl: "kocioł na biomasę (zrębka/pelet)"
+    category: "cieplo"
+    fuel: "biomasa"
+    eta_heat: {min: 0.83, typical: 0.88, max: 0.92}
+    supply_temp_c: 95.0
+    scale_range_kw: [20, 50000]
+    capex_eur_per_kw: {min: 300, typical: 500, max: 900}
+    trl: 9
+    emission_class: "alternatywne"
+    emission_note: "CO2 biogeniczny (neutralny w bilansie); pyły/NOx lokalnie"
+    source: "DEA"
+  kociol_elektryczny:
+    name_pl: "kocioł elektryczny / elektrodowy"
+    category: "cieplo"
+    fuel: "energia_elektryczna"
+    eta_heat: {min: 0.98, typical: 0.99, max: 1.00}
+    supply_temp_c: 120.0
+    scale_range_kw: [5, 70000]
+    capex_eur_per_kw: {min: 60, typical: 120, max: 200}
+    trl: 9
+    emission_class: "niskoemisyjne"
+    emission_note: "Emisje pośrednie wg miksu (zakres 2) — maleją z dekarbonizacją"
+    source: "DEA"
+  pompa_ciepla_powietrzna:
+    name_pl: "pompa ciepła powietrzna"
+    category: "cieplo"
+    fuel: "energia_elektryczna"
+    eta_heat: {min: 2.6, typical: 3.1, max: 3.6}
+    eta_heat_note: "COP sezonowy przy zasilaniu 55–60 °C"
+    supply_temp_c: 60.0
+    scale_range_kw: [5, 5000]
+    capex_eur_per_kw: {min: 400, typical: 700, max: 1100}
+    trl: 9
+    emission_class: "niskoemisyjne"
+    source: "DEA Individual Heating"
+  pompa_ciepla_gruntowa:
+    name_pl: "pompa ciepła gruntowa"
+    category: "cieplo"
+    fuel: "energia_elektryczna"
+    eta_heat: {min: 3.2, typical: 3.8, max: 4.4}
+    supply_temp_c: 60.0
+    scale_range_kw: [5, 2000]
+    capex_eur_per_kw: {min: 800, typical: 1200, max: 1800}
+    trl: 9
+    emission_class: "niskoemisyjne"
+    source: "DEA"
+  pompa_ciepla_wielkoskalowa:
+    name_pl: "pompa ciepła wielkoskalowa (sieciowa)"
+    category: "cieplo"
+    fuel: "energia_elektryczna"
+    eta_heat: {min: 2.8, typical: 3.4, max: 4.0}
+    supply_temp_c: 85.0
+    scale_range_kw: [1000, 50000]
+    capex_eur_per_kw: {min: 500, typical: 800, max: 1300}
+    trl: 8
+    emission_class: "niskoemisyjne"
+    source: "DEA DH"
+  kolektor_sloneczny:
+    name_pl: "kolektor słoneczny (ciepło)"
+    category: "cieplo"
+    fuel: "slonce"
+    eta_heat: {min: 0.35, typical: 0.45, max: 0.55}
+    eta_heat_note: "Sprawność roczna względem nasłonecznienia; uzysk PL ~350–450 kWh/m²·rok"
+    supply_temp_c: 70.0
+    scale_range_kw: [2, 10000]
+    capex_eur_per_kw: {min: 300, typical: 450, max: 700}
+    trl: 9
+    emission_class: "bezemisyjne"
+    source: "DEA; uzysk dla warunków PL"
+  silnik_kogeneracyjny:
+    name_pl: "silnik kogeneracyjny gazowy"
+    category: "kogeneracja"
+    fuel: "gaz_ziemny"
+    eta_el: {min: 0.36, typical: 0.41, max: 0.45}
+    eta_heat: {min: 0.40, typical: 0.45, max: 0.50}
+    supply_temp_c: 90.0
+    scale_range_kw: [50, 10000]
+    capex_eur_per_kw: {min: 700, typical: 1000, max: 1600}
+    trl: 9
+    emission_class: "kopalne"
+    h2_ready_note: "Wersje H2-ready do 100% H2 — dostępne komercyjnie (TRL 8)"
+    source: "DEA; dane producentów (Jenbacher, MWM)"
+  turbina_gazowa:
+    name_pl: "turbina gazowa (prosta, z odzyskiem ciepła)"
+    category: "kogeneracja"
+    fuel: "gaz_ziemny"
+    eta_el: {min: 0.30, typical: 0.36, max: 0.42}
+    eta_heat: {min: 0.35, typical: 0.42, max: 0.50}
+    supply_temp_c: 120.0
+    scale_range_kw: [1000, 300000]
+    capex_eur_per_kw: {min: 500, typical: 800, max: 1300}
+    trl: 9
+    emission_class: "kopalne"
+    source: "DEA; IEA WEO"
+  ccgt:
+    name_pl: "blok gazowo-parowy (CCGT)"
+    category: "energia_elektryczna"
+    fuel: "gaz_ziemny"
+    eta_el: {min: 0.55, typical: 0.60, max: 0.63}
+    scale_range_kw: [100000, 800000]
+    capex_eur_per_kw: {min: 700, typical: 900, max: 1200}
+    trl: 9
+    emission_class: "kopalne"
+    source: "IEA WEO; DEA"
+  ogniwo_sofc:
+    name_pl: "ogniwo paliwowe SOFC (gaz/H2)"
+    category: "kogeneracja"
+    fuel: "gaz_ziemny"
+    eta_el: {min: 0.52, typical: 0.58, max: 0.62}
+    eta_heat: {min: 0.20, typical: 0.25, max: 0.30}
+    supply_temp_c: 80.0
+    scale_range_kw: [1, 1000]
+    capex_eur_per_kw: {min: 3000, typical: 4500, max: 7000}
+    trl: 8
+    emission_class: "kopalne"
+    emission_note: "Na biometanie/H2: nisko- lub bezemisyjne"
+    source: "DEA; IEA"
+  ogniwo_pemfc:
+    name_pl: "ogniwo paliwowe PEMFC (H2)"
+    category: "kogeneracja"
+    fuel: "wodor"
+    eta_el: {min: 0.45, typical: 0.52, max: 0.58}
+    eta_heat: {min: 0.30, typical: 0.35, max: 0.42}
+    supply_temp_c: 65.0
+    scale_range_kw: [1, 2000]
+    capex_eur_per_kw: {min: 2000, typical: 3200, max: 5000}
+    trl: 8
+    emission_class: "bezemisyjne"
+    emission_note: "Bezemisyjne w miejscu użycia; emisje zależą od źródła H2"
+    source: "IEA GHR; DEA"
+  silnik_h2:
+    name_pl: "silnik kogeneracyjny na H2"
+    category: "kogeneracja"
+    fuel: "wodor"
+    eta_el: {min: 0.35, typical: 0.40, max: 0.44}
+    eta_heat: {min: 0.40, typical: 0.45, max: 0.50}
+    supply_temp_c: 90.0
+    scale_range_kw: [100, 5000]
+    capex_eur_per_kw: {min: 900, typical: 1300, max: 2000}
+    trl: 7
+    emission_class: "bezemisyjne"
+    source: "Dane producentów; pierwsze wdrożenia"
+  pv:
+    name_pl: "fotowoltaika (PV)"
+    category: "energia_elektryczna"
+    fuel: "slonce"
+    eta_el: {min: 0.10, typical: 0.11, max: 0.13}
+    eta_el_note: "Współczynnik wykorzystania mocy (capacity factor) dla PL"
+    scale_range_kw: [5, 500000]
+    capex_eur_per_kw: {min: 450, typical: 600, max: 900}
+    trl: 9
+    emission_class: "bezemisyjne"
+    source: "IEA WEO; IRENA"
+  wiatr_ladowy:
+    name_pl: "wiatr lądowy"
+    category: "energia_elektryczna"
+    fuel: "wiatr"
+    eta_el: {min: 0.25, typical: 0.30, max: 0.38}
+    eta_el_note: "Współczynnik wykorzystania mocy dla PL"
+    scale_range_kw: [2000, 500000]
+    capex_eur_per_kw: {min: 1100, typical: 1400, max: 1900}
+    trl: 9
+    emission_class: "bezemisyjne"
+    source: "IEA WEO; IRENA"
+
+# Wskaźnik emisji dla paliw spoza obliczeń stechiometrycznych M8
+fuel_emission_factors_kg_co2_per_gj:
+  wegiel:
+    value: 94.7
+    source: "IPCC 2006 (węgiel kamienny, domyślny)"
+  biomasa:
+    value: 0.0
+    source: "CO2 biogeniczny — neutralny w bilansie (EU ETS)"
+    note: "Emisje cyklu życia (uprawa/transport) poza zakresem 1"

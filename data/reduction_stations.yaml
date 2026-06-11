@@ -39,13 +39,13 @@ heat_sources:
     name_pl: "kocioł wodny gazowy (90/70 °C)"
     supply_temp_c: 90.0
     efficiency_hi: 0.92
-    energy_carrier: "gaz"
+    energy_carrier: "gaz_ziemny"
     source: "Typowy kocioł stacji red.-pom.; sprawność wg Hi"
   kogeneracja:
     name_pl: "kogeneracja gazowa (woda 90/70 °C)"
     supply_temp_c: 90.0
     efficiency_hi: 0.90
-    energy_carrier: "gaz"
+    energy_carrier: "gaz_ziemny"
     source: "Ciepło z modułu CHP; szczegóły technologii w M7"
     note: "Wartość orientacyjna — do weryfikacji."
   cieplo_odpadowe_sprezarek:
@@ -73,7 +73,10 @@ heat_sources:
 # docelowo scenariusze cenowe M5).
 working_prices_pln_per_mwh:
   energia_elektryczna: 550.0
-  gaz: 250.0
+  gaz_ziemny: 250.0
+  biomasa: 120.0
+  wodor: 650.0
+  wegiel: 70.0
   odpadowe: 20.0
   source: "Wartości robocze rzędu cen 2024/2025 — orientacyjne, do edycji"
   note: "Wartość orientacyjna — do weryfikacji; pełne ścieżki cenowe w M5."

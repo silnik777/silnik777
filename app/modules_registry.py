@@ -16,6 +16,8 @@ from app.views import (
     m03_pipeline,
     m04_expanders,
     m05_prices,
+    m06_hydrogen,
+    m07_generation,
     m08_emissions,
     m13_cold_reduction,
 )
@@ -161,6 +163,7 @@ MODULES: list[ModuleInfo] = [
         ),
         stage=5,
         icon="⚡",
+        render=m06_hydrogen.render,
     ),
     ModuleInfo(
         code="M7",
@@ -173,6 +176,7 @@ MODULES: list[ModuleInfo] = [
         ),
         stage=5,
         icon="🏭",
+        render=m07_generation.render,
     ),
     ModuleInfo(
         code="M10",

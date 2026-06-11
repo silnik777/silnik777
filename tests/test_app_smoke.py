@@ -61,6 +61,20 @@ def test_m05_page_renders_without_exception():
     assert at.title[0].value.startswith("M5")
 
 
+def test_m06_page_renders_without_exception():
+    at = _render_view("m06_hydrogen")
+    assert not at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert at.title[0].value.startswith("M6")
+
+
+def test_m07_page_renders_without_exception():
+    at = _render_view("m07_generation")
+    assert not at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert at.title[0].value.startswith("M7")
+
+
 def test_m08_page_renders_without_exception():
     at = _render_view("m08_emissions")
     assert not at.exception

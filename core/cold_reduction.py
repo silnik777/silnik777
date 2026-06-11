@@ -61,9 +61,10 @@ class HeatSource:
 
 @cache
 def heat_sources() -> dict[str, HeatSource]:
-    """Rejestr źródeł ciepła z ``data/reduction_stations.yaml``."""
+    """Rejestr źródeł ciepła: baza z ``data/reduction_stations.yaml``
+    + technologie cieplne z biblioteki M7 (``core.generation``)."""
     raw = load_data_file("reduction_stations.yaml")["heat_sources"]
-    return {
+    result = {
         key: HeatSource(
             key=key,
             name_pl=item["name_pl"],
@@ -76,6 +77,21 @@ def heat_sources() -> dict[str, HeatSource]:
         )
         for key, item in raw.items()
     }
+    # Integracja M7→M13: technologie wytwarzania ciepła jako źródła podgrzewu
+    from core.generation import heat_source_entries  # import lokalny (brak cyklu)
+
+    for item in heat_source_entries():
+        result[item["key"]] = HeatSource(
+            key=item["key"],
+            name_pl=item["name_pl"],
+            supply_temp_c=float(item["supply_temp_c"]),
+            energy_carrier=item["energy_carrier"],
+            efficiency_hi=(float(item["efficiency_hi"]) if "efficiency_hi" in item else None),
+            cop=float(item["cop"]) if "cop" in item else None,
+            source=item["source"],
+            note=item.get("note"),
+        )
+    return result
 
 
 @cache
