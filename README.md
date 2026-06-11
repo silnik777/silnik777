@@ -49,15 +49,20 @@ Aplikacja wystartuje pod `http://localhost:8501`.
 ### Testy
 
 ```bash
-pytest
+pytest                                 # testy jednostkowe + walidacyjne + dymne UI
+python scripts/validation_report.py    # tabela: obliczone vs referencje (M1)
 ```
+
+Tolerancje walidacji M1: Z, gęstość, cp ≤ 0,5%; wartości kaloryczne ≤ 0,1%
+(referencje: ISO 6976, NIST WebBook, entalpie tworzenia ATcT/CODATA,
+literatura — pełna lista w `tests/reference_data.py`).
 
 ## Plan pracy (etapy)
 
 | Etap | Zakres | Status |
 |---|---|---|
 | 0 | Szkielet projektu, `units.py`, konfiguracja, pusty Streamlit z nawigacją | ✅ |
-| 1 | M1 — właściwości gazów i mieszanin + testy walidacyjne (NIST) | 🔜 |
+| 1 | M1 — właściwości gazów i mieszanin + testy walidacyjne | ✅ |
 | 2 | M2 — sprężanie, M3 — gazociągi | 🔜 |
 | 3 | M4 — ekspandery, M13 — zimna redukcja | 🔜 |
 | 4 | M5 — ścieżki cenowe, M8–M9 — emisje | 🔜 |

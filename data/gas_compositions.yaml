@@ -1,0 +1,39 @@
+meta:
+  description: >
+    Predefiniowane składy gazów (udziały molowe w %). Skład gazu E jest
+    orientacyjny — typowy dla sieci dystrybucyjnej w Polsce; do zastąpienia
+    rzeczywistymi analizami chromatograficznymi użytkownika.
+  updated: "2026-06-11"
+
+compositions:
+  gaz_E_typowy:
+    name_pl: "Gaz ziemny E (typowy, sieć dystrybucyjna PL)"
+    mole_percent:
+      CH4: 96.40
+      C2H6: 1.90
+      C3H8: 0.45
+      nC4H10: 0.07
+      iC4H10: 0.07
+      nC5H12: 0.02
+      iC5H12: 0.02
+      nC6H14: 0.03
+      N2: 0.85
+      CO2: 0.19
+    source: >
+      Wartości orientacyjne na podstawie typowych analiz gazu grupy E
+      w polskiej sieci (CH4 95–98%).
+    note: "Wartość orientacyjna — do weryfikacji / zastąpienia analizą rzeczywistą."
+  biometan:
+    name_pl: "Biometan (po uzdatnieniu, zgodny z EN 16723)"
+    mole_percent:
+      CH4: 97.00
+      CO2: 2.50
+      N2: 0.40
+      O2: 0.10
+    source: "Typowy skład biometanu sieciowego (EN 16723-1)."
+    note: "Wartość orientacyjna — do weryfikacji."
+  wodor_99999:
+    name_pl: "Wodór 5.0 (czystość 99,999%, ISO 14687 klasa D)"
+    mole_percent:
+      H2: 100.00
+    source: "ISO 14687:2019 — w obliczeniach pomijamy śladowe zanieczyszczenia (<10 ppm)."

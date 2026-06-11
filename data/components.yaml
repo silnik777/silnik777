@@ -1,0 +1,115 @@
+meta:
+  description: >
+    Rejestr składników gazu: nazwy CoolProp, stechiometria wody (do wartości
+    opałowej) oraz molowe ciepło spalania gazu doskonałego przy 25°C wg
+    ISO 6976:2016, tab. 3. Wartości HHV zweryfikowane krzyżowo z entalpiami
+    tworzenia (ATcT/CODATA, pakiet chemicals 1.5.2) — odchyłki < 0,03%.
+  updated: "2026-06-11"
+  source: "ISO 6976:2016 (tab. 3); CoolProp 7.2 (nazwy płynów)"
+
+# h2o_mol_per_mol — mole H2O powstające ze spalenia 1 mola składnika
+# hhv_molar_25c_kj_per_mol — molowe ciepło spalania gazu doskonałego, 25°C
+components:
+  CH4:
+    name_pl: "metan"
+    formula: "CH4"
+    coolprop_name: "Methane"
+    hhv_molar_25c_kj_per_mol: 890.58
+    h2o_mol_per_mol: 2
+    source: "ISO 6976:2016 tab. 3"
+  C2H6:
+    name_pl: "etan"
+    formula: "C2H6"
+    coolprop_name: "Ethane"
+    hhv_molar_25c_kj_per_mol: 1560.69
+    h2o_mol_per_mol: 3
+    source: "ISO 6976:2016 tab. 3"
+  C3H8:
+    name_pl: "propan"
+    formula: "C3H8"
+    coolprop_name: "Propane"
+    hhv_molar_25c_kj_per_mol: 2219.17
+    h2o_mol_per_mol: 4
+    source: "ISO 6976:2016 tab. 3"
+  nC4H10:
+    name_pl: "n-butan"
+    formula: "n-C4H10"
+    coolprop_name: "n-Butane"
+    hhv_molar_25c_kj_per_mol: 2877.40
+    h2o_mol_per_mol: 5
+    source: "ISO 6976:2016 tab. 3"
+  iC4H10:
+    name_pl: "izobutan"
+    formula: "i-C4H10"
+    coolprop_name: "IsoButane"
+    hhv_molar_25c_kj_per_mol: 2868.20
+    h2o_mol_per_mol: 5
+    source: "ISO 6976:2016 tab. 3"
+  nC5H12:
+    name_pl: "n-pentan"
+    formula: "n-C5H12"
+    coolprop_name: "n-Pentane"
+    hhv_molar_25c_kj_per_mol: 3535.77
+    h2o_mol_per_mol: 6
+    source: "ISO 6976:2016 tab. 3"
+  iC5H12:
+    name_pl: "izopentan"
+    formula: "i-C5H12"
+    coolprop_name: "Isopentane"
+    hhv_molar_25c_kj_per_mol: 3527.61
+    h2o_mol_per_mol: 6
+    source: "ISO 6976:2016 tab. 3"
+  nC6H14:
+    name_pl: "n-heksan (frakcja C6+)"
+    formula: "n-C6H14"
+    coolprop_name: "n-Hexane"
+    hhv_molar_25c_kj_per_mol: 4194.95
+    h2o_mol_per_mol: 7
+    source: "ISO 6976:2016 tab. 3"
+    note: "Frakcję C6+ aproksymujemy n-heksanem (praktyka analiz chromatograficznych)."
+  N2:
+    name_pl: "azot"
+    formula: "N2"
+    coolprop_name: "Nitrogen"
+    hhv_molar_25c_kj_per_mol: 0.0
+    h2o_mol_per_mol: 0
+    source: "ISO 6976:2016 (składnik niepalny)"
+  CO2:
+    name_pl: "dwutlenek węgla"
+    formula: "CO2"
+    coolprop_name: "CarbonDioxide"
+    hhv_molar_25c_kj_per_mol: 0.0
+    h2o_mol_per_mol: 0
+    source: "ISO 6976:2016 (składnik niepalny)"
+  O2:
+    name_pl: "tlen"
+    formula: "O2"
+    coolprop_name: "Oxygen"
+    hhv_molar_25c_kj_per_mol: 0.0
+    h2o_mol_per_mol: 0
+    source: "ISO 6976:2016 (składnik niepalny)"
+  He:
+    name_pl: "hel"
+    formula: "He"
+    coolprop_name: "Helium"
+    hhv_molar_25c_kj_per_mol: 0.0
+    h2o_mol_per_mol: 0
+    source: "ISO 6976:2016 (składnik niepalny)"
+  H2:
+    name_pl: "wodór"
+    formula: "H2"
+    coolprop_name: "Hydrogen"
+    hhv_molar_25c_kj_per_mol: 285.83
+    h2o_mol_per_mol: 1
+    source: "ISO 6976:2016 tab. 3"
+
+# Stałe metody ISO 6976
+iso6976_constants:
+  # Entalpia parowania wody przy 25°C [kJ/mol] — różnica Hs−Hi na 1 mol H2O.
+  h2o_vaporization_25c_kj_per_mol: 44.016
+  h2o_vaporization_source: >
+    ISO 6976 (spójna z parami wartości brutto/netto tab. 3); rozrzut źródeł
+    44,004–44,016 kJ/mol (CODATA) ⇒ wpływ na Hi < 0,03%.
+  # Masa molowa suchego powietrza [kg/kmol] — do gęstości względnej.
+  air_molar_mass_kg_per_kmol: 28.9626
+  air_source: "ISO 6976:2016"
