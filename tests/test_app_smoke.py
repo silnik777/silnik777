@@ -82,6 +82,27 @@ def test_m08_page_renders_without_exception():
     assert at.title[0].value.startswith("M8")
 
 
+def test_m10_page_renders_without_exception():
+    at = _render_view("m10_economics")
+    assert not at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert at.title[0].value.startswith("M10")
+
+
+def test_m11_page_renders_without_exception():
+    at = _render_view("m11_benchmarking")
+    assert not at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert at.title[0].value.startswith("M11")
+
+
+def test_m12_page_renders_without_exception():
+    at = _render_view("m12_linepack")
+    assert not at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert at.title[0].value.startswith("M12")
+
+
 def test_m13_page_renders_without_exception():
     at = _render_view("m13_cold_reduction")
     assert not at.exception

@@ -67,7 +67,7 @@ literatura — pełna lista w `tests/reference_data.py`).
 | 3 | M4 — ekspandery, M13 — zimna redukcja (hydraty, źródła ciepła) | ✅ |
 | 4 | M5 — ścieżki cenowe, M8–M9 — emisje | ✅ |
 | 5 | M6 — produkcja wodoru (IEA), M7 — benchmark technologii wytwórczych | ✅ |
-| 6 | M10 — ekonomia, M11 — benchmarking, M12 — linepack | 🔜 |
+| 6 | M10 — ekonomia (LCOx/NPV/IRR/tornado), M11 — benchmarking, M12 — linepack | ✅ |
 | 7 | M14 — karta projektu, eksporty XLSX/CSV/PDF, dokumentacja wdrożenia | 🔜 |
 
 ## Ścieżka wdrożenia webowego (docelowo)

@@ -1,0 +1,32 @@
+meta:
+  description: >
+    Dane uzupełniające benchmarking M11: parametry magazynu bateryjnego
+    (LCOS) oraz oceny dyspozycyjności technologii (0–1; zdolność do pracy
+    na żądanie). Wartości orientacyjne — do weryfikacji.
+  updated: "2026-06-11"
+  source: "NREL ATB 2024 (baterie); oceny dyspozycyjności — ekspercko"
+  note: "Wartość orientacyjna — do weryfikacji."
+
+battery_storage:
+  name_pl: "magazyn bateryjny Li-ion (4h)"
+  capex_eur_per_kwh: {min: 250, typical: 320, max: 450}
+  opex_pct_capex_per_year: 2.0
+  round_trip_efficiency: 0.88
+  cycles_per_year: 300
+  lifetime_years: 15
+  trl: 9
+  source: "NREL ATB 2024; BloombergNEF — rzędy wielkości"
+
+# Dyspozycyjność: 0 = całkowicie zależna od pogody, 1 = pełna sterowalność.
+dispatchability:
+  pv: 0.15
+  wiatr_ladowy: 0.25
+  kociol_biomasowy: 0.90
+  silnik_kogeneracyjny: 0.95
+  ccgt: 0.95
+  ogniwo_pemfc: 0.90
+  silnik_h2: 0.90
+  pompa_ciepla_wielkoskalowa: 0.90
+  bateria: 0.85
+  bateria_note: "Ograniczona pojemnością (tu: 4h) — stąd < 1"
+  source: "Ocena ekspercka na potrzeby rankingu — edytowalna"

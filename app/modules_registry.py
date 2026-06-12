@@ -19,6 +19,9 @@ from app.views import (
     m06_hydrogen,
     m07_generation,
     m08_emissions,
+    m10_economics,
+    m11_benchmarking,
+    m12_linepack,
     m13_cold_reduction,
 )
 
@@ -123,6 +126,7 @@ MODULES: list[ModuleInfo] = [
         ),
         stage=6,
         icon="📦",
+        render=m12_linepack.render,
     ),
     ModuleInfo(
         code="M5",
@@ -190,6 +194,7 @@ MODULES: list[ModuleInfo] = [
         ),
         stage=6,
         icon="💰",
+        render=m10_economics.render,
     ),
     ModuleInfo(
         code="M11",
@@ -203,6 +208,7 @@ MODULES: list[ModuleInfo] = [
         ),
         stage=6,
         icon="📊",
+        render=m11_benchmarking.render,
     ),
     ModuleInfo(
         code="M14",
