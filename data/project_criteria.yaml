@@ -1,0 +1,73 @@
+meta:
+  description: >
+    Kryteria oceny wielokryterialnej projektów B+R (M14): wskaźniki
+    techniczne, ekonomiczne i ekologiczne. Kierunek: "wyzej" = wyższa
+    wartość lepsza, "nizej" = niższa lepsza. Wagi domyślne — równe w ramach
+    kategorii (edytowalne w UI). Pole "gdzie_policzyc" wskazuje moduł
+    narzędzia, w którym użytkownik wyznaczy wartość.
+  updated: "2026-06-11"
+
+criteria:
+  trl:
+    name_pl: "Poziom gotowości technologicznej (TRL)"
+    unit: "1–9"
+    direction: "wyzej"
+    category: "techniczne"
+    default_weight: 1.0
+    gdzie_policzyc: "Biblioteki technologii: M2/M4/M6/M7 (kolumna TRL)"
+  sprawnosc:
+    name_pl: "Sprawność energetyczna"
+    unit: "%"
+    direction: "wyzej"
+    category: "techniczne"
+    default_weight: 1.0
+    gdzie_policzyc: "M2 (sprężanie), M4 (ekspandery), M6 (wodór), M7 (wytwarzanie)"
+  dyspozycyjnosc:
+    name_pl: "Dyspozycyjność / dostępność"
+    unit: "0–1"
+    direction: "wyzej"
+    category: "techniczne"
+    default_weight: 1.0
+    gdzie_policzyc: "M11 (oceny dyspozycyjności) albo własna ocena"
+  capex:
+    name_pl: "Nakłady inwestycyjne (CAPEX)"
+    unit: "mln PLN"
+    direction: "nizej"
+    category: "ekonomiczne"
+    default_weight: 1.0
+    gdzie_policzyc: "Biblioteki CAPEX w M2/M4/M6/M7 × skala projektu"
+  lcox:
+    name_pl: "Koszt uśredniony produktu (LCOE/LCOH)"
+    unit: "PLN/MWh lub PLN/kg"
+    direction: "nizej"
+    category: "ekonomiczne"
+    default_weight: 1.0
+    gdzie_policzyc: "M10 (kalkulator LCOH/LCOE)"
+  npv:
+    name_pl: "Wartość bieżąca netto (NPV)"
+    unit: "mln PLN"
+    direction: "wyzej"
+    category: "ekonomiczne"
+    default_weight: 1.0
+    gdzie_policzyc: "M10 (przy cenie sprzedaży produktu)"
+  dpp:
+    name_pl: "Zdyskontowany okres zwrotu (DPP)"
+    unit: "lata"
+    direction: "nizej"
+    category: "ekonomiczne"
+    default_weight: 1.0
+    gdzie_policzyc: "M10"
+  redukcja_emisji:
+    name_pl: "Redukcja emisji GHG"
+    unit: "t CO2eq/rok"
+    direction: "wyzej"
+    category: "ekologiczne"
+    default_weight: 1.0
+    gdzie_policzyc: "M8–M9 (spalanie, ucieczki, zakres 2) — różnica wariantów"
+  emisje_jednostkowe:
+    name_pl: "Emisje jednostkowe produktu"
+    unit: "g CO2eq/kWh lub kg CO2/kg H2"
+    direction: "nizej"
+    category: "ekologiczne"
+    default_weight: 1.0
+    gdzie_policzyc: "M7 (wytwarzanie), M6 (wodór), M11 (benchmark)"

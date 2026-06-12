@@ -23,6 +23,7 @@ from app.views import (
     m11_benchmarking,
     m12_linepack,
     m13_cold_reduction,
+    m14_project_card,
 )
 
 
@@ -222,5 +223,6 @@ MODULES: list[ModuleInfo] = [
         ),
         stage=7,
         icon="📋",
+        render=m14_project_card.render,
     ),
 ]

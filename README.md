@@ -33,9 +33,18 @@ Zasady:
   `source` i `updated`; wartości niepewne oznaczone
   `note: "wartość orientacyjna — do weryfikacji"`.
 
-## Uruchomienie lokalne
+## Uruchomienie — dla użytkownika (nieprogramisty)
 
-Wymagania: Python ≥ 3.11.
+1. Zainstaluj Pythona ≥ 3.11 z [python.org](https://www.python.org/downloads/)
+   (Windows: zaznacz **„Add Python to PATH"**).
+2. **Windows:** dwuklik na `start.bat` · **Mac/Linux:** `./start.sh`.
+3. Aplikacja otworzy się w przeglądarce (`http://localhost:8501`).
+
+Pełna instrukcja obsługi (po polsku, krok po kroku, typowe analizy,
+edycja danych, FAQ): **[INSTRUKCJA.md](INSTRUKCJA.md)**. W aplikacji:
+strona główna → zakładki „🚀 Jak zacząć" i „🧭 Typowe analizy".
+
+## Uruchomienie — dla dewelopera
 
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
@@ -43,8 +52,6 @@ pip install -r requirements.txt
 cp .env.example .env                                 # opcjonalnie
 streamlit run app/main.py
 ```
-
-Aplikacja wystartuje pod `http://localhost:8501`.
 
 ### Testy
 
@@ -68,14 +75,22 @@ literatura — pełna lista w `tests/reference_data.py`).
 | 4 | M5 — ścieżki cenowe, M8–M9 — emisje | ✅ |
 | 5 | M6 — produkcja wodoru (IEA), M7 — benchmark technologii wytwórczych | ✅ |
 | 6 | M10 — ekonomia (LCOx/NPV/IRR/tornado), M11 — benchmarking, M12 — linepack | ✅ |
-| 7 | M14 — karta projektu, eksporty XLSX/CSV/PDF, dokumentacja wdrożenia | 🔜 |
+| 7 | M14 — karta projektu, eksporty XLSX/CSV, instrukcja, skrypty startowe | ✅ |
 
-## Ścieżka wdrożenia webowego (docelowo)
+## Ścieżka wdrożenia webowego (Azure)
 
-1. **Konteneryzacja** — gotowy `Dockerfile` (Streamlit, port 8501).
-2. **Azure** — Azure Container Apps lub App Service (Web App for Containers);
-   konfiguracja przez zmienne środowiskowe (patrz `.env.example`).
-3. **Uwierzytelnianie** — Microsoft Entra ID (App Service Easy Auth lub MSAL);
-   struktura aplikacji nie wymaga zmian w `core/`.
-4. **Power BI** — eksporty XLSX/CSV (etap 7), docelowo REST API (FastAPI)
-   na tym samym silniku `core/`.
+Docelowo użytkownicy nic nie instalują — wchodzą na firmowy adres www
+i logują się kontem służbowym:
+
+1. **Konteneryzacja** — gotowy `Dockerfile`:
+   `docker build -t gas-rd-tool . && docker run -p 8501:8501 gas-rd-tool`.
+2. **Rejestr i hosting** — obraz do Azure Container Registry, uruchomienie
+   w **Azure Container Apps** (lub App Service for Containers); katalogi
+   `data/user_scenarios/` i `data/projects/` zamontować jako Azure Files
+   (trwałość zapisów użytkowników); zmienne środowiskowe wg `.env.example`.
+3. **Logowanie** — **Microsoft Entra ID** przez wbudowane uwierzytelnianie
+   Container Apps/App Service (Easy Auth) — bez zmian w kodzie aplikacji;
+   dostęp ograniczony do grupy AD.
+4. **Power BI** — dziś: eksporty XLSX/CSV z M14 (separator `;`, UTF-8 BOM);
+   docelowo: REST API (FastAPI) na tym samym pakiecie `core/` + dataset
+   odświeżany automatycznie.

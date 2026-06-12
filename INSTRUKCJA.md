@@ -1,0 +1,101 @@
+# Instrukcja użytkownika — narzędzie oceny projektów B+R w dystrybucji gazu
+
+> Instrukcja dla użytkownika **nieprogramisty**. Część techniczna (dla IT)
+> znajduje się w pliku `README.md`.
+
+## 1. Pierwsze uruchomienie (jednorazowa instalacja)
+
+### Windows
+
+1. Zainstaluj Pythona: wejdź na **python.org/downloads**, pobierz
+   „Python 3.11" (lub nowszy) i uruchom instalator.
+   **WAŻNE:** na pierwszym ekranie zaznacz ☑ **„Add Python to PATH"**.
+2. Rozpakuj/skopiuj katalog narzędzia w dowolne miejsce (np. `C:\Narzedzia\gaz-br`).
+3. Kliknij dwukrotnie plik **`start.bat`** w katalogu narzędzia.
+   - Przy pierwszym uruchomieniu skrypt sam pobierze potrzebne biblioteki
+     (kilka minut, wymaga internetu) — kolejne starty trwają kilka sekund.
+4. Aplikacja otworzy się w przeglądarce pod adresem `http://localhost:8501`.
+   Jeśli nie otworzy się sama — wpisz ten adres w przeglądarce.
+
+### Mac / Linux
+
+1. Zainstaluj Pythona ≥ 3.11 (Mac: `brew install python`, Linux: z repozytorium).
+2. W katalogu narzędzia uruchom **`./start.sh`** (pierwszy raz: `chmod +x start.sh`).
+
+### Zamykanie
+
+Zamknij okno czarnej konsoli (terminala) — aplikacja w przeglądarce przestanie
+odpowiadać; kartę przeglądarki można zamknąć w dowolnym momencie.
+
+## 2. Jak poruszać się po aplikacji
+
+- **Menu po lewej** — moduły pogrupowane tematycznie (właściwości i przepływ,
+  odzysk energii, scenariusze i emisje, technologie, ocena i porównania).
+- **Strona główna** — zakładka „🚀 Jak zacząć" i „🧭 Typowe analizy"
+  z gotowymi ścieżkami krok po kroku.
+- Każda strona ma na dole sekcję **„📖 Założenia i wzory"** — metodyka,
+  wzory i źródła danych (normy, raporty IEA/DNV itd.).
+- **Żółte komunikaty** to ostrzeżenia merytoryczne (np. ryzyko hydratów) —
+  warto je czytać; **czerwone** oznaczają błędne dane wejściowe.
+
+## 3. Typowy przepływ pracy (ocena projektu)
+
+1. **Policz wskaźniki** w modułach tematycznych, np.:
+   - parametry gazu i wpływ %H₂ → **M1**,
+   - energia sprężania / przepustowość rur → **M2 / M3**,
+   - odzysk energii na stacji redukcyjnej → **M4 / M13**,
+   - koszty i emisje wodoru → **M6, M10, M8–M9**,
+   - porównanie z PV/wiatrem/baterią → **M11**.
+2. **Zapisz kartę projektu** w **M14** (zakładka „📝 Nowy / edycja projektu").
+   Każde pole podpowiada, w którym module wyznaczysz wartość. Pola, których
+   nie masz — zostaw puste.
+3. **Porównaj projekty** (zakładka „📊 Porównanie i ranking"): wybierz min. 2
+   karty, ustaw wagi (technika / ekonomia / ekologia), odczytaj ranking
+   i wykres radarowy.
+4. **Eksportuj**: przyciski „⬇️ XLSX" / „⬇️ CSV" — pliki otwierają się
+   w Excelu i wczytują do Power BI bez dodatkowych ustawień.
+
+## 4. Scenariusze cenowe (M5)
+
+- Wbudowane scenariusze: **niski / bazowy / wysoki** (ceny gazu, energii,
+  H₂, EUA/ETS2, emisyjność miksu do 2050).
+- Możesz je **edytować w tabeli** i zapisać pod własną nazwą — scenariusz
+  pojawi się automatycznie we wszystkich modułach (M6–M11).
+- Scenariusze użytkownika to pliki w `data/user_scenarios/` — można je
+  kopiować między komputerami.
+
+## 5. Zmiana danych domyślnych (bez programisty)
+
+Wszystkie dane domyślne są w katalogu **`data/`** w plikach tekstowych
+(YAML) otwieranych Notatnikiem, np.:
+
+| Plik | Co zawiera |
+|---|---|
+| `gas_compositions.yaml` | składy gazów (tu podmień typowy skład E na własną analizę) |
+| `quality_limits.yaml` | widełki Wobbego, progi %H₂ |
+| `compressors.yaml`, `expanders.yaml` | sprawności i mapy maszyn |
+| `reduction_stations.yaml` | warianty stacji, źródła ciepła, ceny robocze |
+| `price_scenarios.yaml` | scenariusze cenowe |
+| `hydrogen_production.yaml`, `generation_technologies.yaml` | technologie H₂ i wytwórcze |
+
+Zasady edycji: zachowaj wcięcia i dwukropki; po zmianie odśwież stronę
+w przeglądarce (klawisz `R` lub przycisk „Rerun"). Każda wartość ma pole
+`source` (źródło) — uzupełniaj je przy podmianie danych.
+
+## 6. Najczęstsze problemy
+
+| Objaw | Co zrobić |
+|---|---|
+| `start.bat` miga i znika | Python nie jest w PATH — przeinstaluj z opcją „Add Python to PATH" |
+| „Suma udziałów molowych musi wynosić 100%" | Popraw skład w tabeli albo kliknij „Znormalizuj skład do 100%" |
+| Czerwony komunikat o ciśnieniach | Ciśnienie wylotowe musi być niższe (redukcja) / wyższe (sprężanie) od wlotowego |
+| Aplikacja działa wolno przy mieszaninach | Pierwsze obliczenie danego składu buduje model (do ~1 s); kolejne są natychmiastowe |
+| Wynik wygląda podejrzanie | Sprawdź sekcję „📖 Założenia i wzory" oraz żółte ostrzeżenia |
+
+## 7. Co dalej (wdrożenie firmowe)
+
+Narzędzie jest przygotowane do uruchomienia jako aplikacja webowa
+(bez instalacji u użytkowników): kontener Docker → Azure App Service /
+Container Apps, logowanie kontami firmowymi (Microsoft Entra ID),
+eksporty CSV/XLSX zasilające Power BI. Szczegóły techniczne: `README.md`,
+sekcja „Ścieżka wdrożenia webowego".

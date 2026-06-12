@@ -108,3 +108,10 @@ def test_m13_page_renders_without_exception():
     assert not at.exception
     assert not at.error, [e.value for e in at.error]
     assert at.title[0].value.startswith("M13")
+
+
+def test_m14_page_renders_without_exception():
+    at = _render_view("m14_project_card")
+    assert not at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert at.title[0].value.startswith("M14")

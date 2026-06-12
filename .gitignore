@@ -32,3 +32,6 @@ exports/
 
 # Scenariusze użytkownika (dane robocze, nie wersjonujemy)
 data/user_scenarios/*.json
+
+# Karty projektów użytkownika (dane robocze)
+data/projects/*.json
