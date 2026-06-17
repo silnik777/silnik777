@@ -1,0 +1,43 @@
+meta:
+  description: >
+    Liczba metanowa (Methane Number, MN) — odporność paliwa gazowego na
+    spalanie stukowe w silnikach gazowych. MN czystego metanu = 100,
+    czystego wodoru = 0 (definicja: % obj. CH4 w mieszaninie odniesienia
+    CH4/H2 dopasowanej intensywnością stuku). Narzędzie liczy MN modelem
+    LINIOWYM (molowe mieszanie wartości składnikowych).
+
+    WAŻNE: na osi CH4–H2 model liniowy jest ŚCISŁY (MN = % mol CH4) — to
+    kluczowe dla oceny domieszki wodoru. Dla cięższych węglowodorów i
+    gazów inertnych jest to przybliżenie. Wartość certyfikacyjna wymaga
+    rygorystycznej metody MWM wg EN 16726 (Annex A) / ASTM D8221 (algorytm
+    optymalizacyjny z tablicami — nieujęty w tym narzędziu).
+  updated: "2026-06-17"
+  source: >
+    Definicja: Leiker i in. (1972). Wartości składnikowe modelu liniowego —
+    literatura silnikowa (orientacyjne). Metoda referencyjna: EN 16726 Annex A
+    (MWM); ASTM D8221.
+  note: "Wartość orientacyjna — model liniowy; certyfikacja wg EN 16726/ASTM D8221."
+
+# Limit dla silników gazowych — zależny od konstrukcji silnika.
+engine_limit:
+  min_mn: 65
+  source: "Typowy wymóg silników gazowych 65–80 (karty producentów); do weryfikacji."
+
+# MN składnikowe (model liniowy). CH4=100, H2=0 — ścisłe z definicji.
+# Gazy inertne (N2, CO2, O2, He, Ar) traktowane neutralnie (=100): nie
+# obniżają MN; w rzeczywistości lekko ją podnoszą (efekt konserwatywny).
+component_mn:
+  CH4: 100.0      # definicja (reper)
+  C2H6: 44.0
+  C3H8: 34.0
+  nC4H10: 10.0
+  iC4H10: 34.0    # izobutan bardziej odporny na stuk niż n-butan
+  nC5H12: 0.0
+  iC5H12: 0.0
+  nC6H14: 0.0
+  N2: 100.0       # inert — neutralnie (konserwatywnie)
+  CO2: 100.0      # inert — neutralnie
+  O2: 100.0       # nie dotyczy paliwa — neutralnie
+  He: 100.0       # inert
+  Ar: 100.0       # inert
+  H2: 0.0         # definicja (reper)

@@ -143,6 +143,14 @@ class GasComposition:
         registry = components_registry()
         return sum(x * registry[k].molar_mass_kg_per_kmol for k, x in self.fractions)
 
+    @property
+    def is_combustible(self) -> bool:
+        """Czy gaz jest palny (zawiera składnik o dodatnim cieple spalania)."""
+        registry = components_registry()
+        return any(
+            registry[k].hhv_molar_25c_kj_per_mol > 0.0 and x > 0.0 for k, x in self.fractions
+        )
+
     # --- operacje -------------------------------------------------------
 
     def blend(self, other: GasComposition, other_fraction: float) -> GasComposition:

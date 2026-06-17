@@ -22,7 +22,9 @@ from dataclasses import dataclass
 from core.calorific import calorific_values
 from core.composition import GasComposition
 from core.compression import compress
+from core.expanders import expand
 from core.gas_properties import compute_properties
+from core.units import j_to_kwh
 
 
 @dataclass(frozen=True)
@@ -38,19 +40,27 @@ class LinepackResult:
     geometric_volume_m3: float
     mass_at_pmin_kg: float
     mass_at_pmax_kg: float
-    energy_total_at_pmax_mwh: float  # cała zawartość przy p_max
-    buffer_energy_mwh: float  # robocza (p_max − p_min)
+    energy_total_at_pmax_mwh: float  # cała zawartość przy p_max (Hi; 0 dla powietrza)
+    buffer_energy_mwh: float  # robocza (p_max − p_min), energia chemiczna (Hi)
     compression_kwh_el: float  # energia napełnienia bufora (M2)
+    is_combustible: bool
+    caes_recovered_mwh: float  # CAES: energia el. odzyskana z rozprężania bufora (M4)
+    caes_round_trip_efficiency: float  # CAES: odzysk / napełnienie [-]
 
     @property
     def buffer_mass_kg(self) -> float:
         return self.mass_at_pmax_kg - self.mass_at_pmin_kg
 
     def buffer_hours_at_load(self, load_mw: float) -> float:
-        """Czas pokrycia poboru [h] z bufora przy mocy ``load_mw``."""
+        """Czas pokrycia poboru [h] z bufora przy mocy ``load_mw``.
+
+        Dla gazu palnego — z energii chemicznej (Hi); dla powietrza (CAES) —
+        z energii elektrycznej odzyskanej w rozprężaniu.
+        """
         if load_mw <= 0:
             raise ValueError("Pobór mocy musi być dodatni.")
-        return self.buffer_energy_mwh / load_mw
+        energy = self.buffer_energy_mwh if self.is_combustible else self.caes_recovered_mwh
+        return energy / load_mw
 
     @property
     def compression_kwh_el_per_mwh(self) -> float:
@@ -69,8 +79,17 @@ def linepack(
     temperature_k: float = 283.15,
     compressor_eta: float = 0.82,
     mech_el_efficiency: float = 0.95,
+    expander_eta: float = 0.80,
 ) -> LinepackResult:
     """Pojemność energetyczna odcinka dla widełek ciśnień i składu.
+
+    Dla gazu palnego liczona jest energia chemiczna bufora (Hi). Dla gazu
+    niepalnego (powietrze) moduł działa jako **CAES** (Compressed Air Energy
+    Storage): energia magazynowana to praca elektryczna odzyskiwana przy
+    rozprężaniu bufora p_max→p_min w turboekspanderze (M4); sprawność
+    round-trip = odzysk / napełnienie. Model diabatyczny (rura zakopana,
+    T = const — ciepło sprężania oddane do gruntu), więc round-trip jest
+    odpowiednio niższy niż dla CAES adiabatycznego z magazynem ciepła.
 
     Args:
         composition: skład gazu (M1),
@@ -78,7 +97,8 @@ def linepack(
         pressure_min_pa, pressure_max_pa: widełki ciśnień (p_max > p_min),
         temperature_k: temperatura gazu (stała),
         compressor_eta: sprawność politropowa sprężarki napełniającej (M2),
-        mech_el_efficiency: sprawność mechaniczno-elektryczna napędu.
+        mech_el_efficiency: sprawność mechaniczno-elektryczna napędu,
+        expander_eta: sprawność izentropowa turboekspandera CAES (M4).
     """
     if diameter_m <= 0 or length_m <= 0:
         raise ValueError("Geometria odcinka musi być dodatnia.")
@@ -92,7 +112,8 @@ def linepack(
     rho_max = compute_properties(composition, pressure_max_pa, temperature_k).density_kg_per_m3
     m_min, m_max = rho_min * volume, rho_max * volume
 
-    hi_mj_per_kg = calorific_values(composition).hi_mj_per_kg
+    combustible = composition.is_combustible
+    hi_mj_per_kg = calorific_values(composition).hi_mj_per_kg if combustible else 0.0
     buffer_mwh = (m_max - m_min) * hi_mj_per_kg / 3600.0
     total_mwh = m_max * hi_mj_per_kg / 3600.0
 
@@ -105,6 +126,14 @@ def linepack(
         model="politropowy",
     )
     compression_kwh = comp.work_kwh_per_kg * (m_max - m_min) / mech_el_efficiency
+
+    # CAES: praca elektryczna odzyskana przy rozprężaniu bufora p_max→p_min.
+    expansion = expand(
+        composition, pressure_max_pa, temperature_k, pressure_min_pa, eta=expander_eta
+    )
+    recovered_kwh = j_to_kwh(expansion.work_j_per_kg) * (m_max - m_min) * mech_el_efficiency
+    caes_recovered_mwh = recovered_kwh / 1e3
+    round_trip = recovered_kwh / compression_kwh if compression_kwh > 0 else 0.0
 
     return LinepackResult(
         composition=composition,
@@ -119,4 +148,7 @@ def linepack(
         energy_total_at_pmax_mwh=total_mwh,
         buffer_energy_mwh=buffer_mwh,
         compression_kwh_el=compression_kwh,
+        is_combustible=combustible,
+        caes_recovered_mwh=caes_recovered_mwh,
+        caes_round_trip_efficiency=round_trip,
     )

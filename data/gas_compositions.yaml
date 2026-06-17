@@ -37,3 +37,12 @@ compositions:
     mole_percent:
       H2: 100.00
     source: "ISO 14687:2019 — w obliczeniach pomijamy śladowe zanieczyszczenia (<10 ppm)."
+  powietrze:
+    name_pl: "Powietrze (suche) — magazynowanie CAES"
+    mole_percent:
+      N2: 78.09
+      O2: 20.95
+      Ar: 0.93
+      CO2: 0.03
+    source: "Standardowy skład suchego powietrza (US Standard Atmosphere 1976)."
+    note: "Gaz niepalny — do analiz przepływu (M3) i magazynowania energii CAES (M12)."

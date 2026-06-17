@@ -79,9 +79,15 @@ def render() -> None:
         )
         base = GasComposition.predefined(gas_key)
         h2_pct = 0.0
-        if gas_key != "wodor_99999":
+        if base.is_combustible and gas_key != "wodor_99999":
             h2_pct = st.slider("Domieszka H2 [% mol]", 0.0, 100.0, 0.0, 5.0)
-        composition = base.blend_with_hydrogen(h2_pct / 100.0)
+        composition = base.blend_with_hydrogen(h2_pct / 100.0) if h2_pct else base
+        if not composition.is_combustible:
+            st.info(
+                "ℹ️ Gaz niepalny (powietrze) — moduł liczy hydraulikę przepływu "
+                "(spadek ciśnienia, prędkości). Magazynowanie energii w sprężonym "
+                "powietrzu (CAES) policzysz w module M12."
+            )
 
         st.subheader("Rura")
         c1, c2 = st.columns(2)
@@ -146,7 +152,10 @@ def render() -> None:
         r1 = st.columns(4)
         r1[0].metric("Strumień masy", f"{result.mass_flow_kg_per_s:.2f} kg/s")
         r1[1].metric("Strumień objętości", f"{result.volume_flow_nm3_per_h():,.0f} Nm³/h")
-        r1[2].metric("Przepustowość energet.", f"{result.energy_flow_mw():.1f} MW")
+        if composition.is_combustible:
+            r1[2].metric("Przepustowość energet.", f"{result.energy_flow_mw():.1f} MW")
+        else:
+            r1[2].metric("Przepustowość energet.", "n.d. (gaz niepalny)")
         r1[3].metric("Spadek ciśnienia", f"{result.pressure_drop_pa / 1e5:.2f} bar")
         r2 = st.columns(4)
         v_max = result.max_velocity_m_per_s
@@ -200,6 +209,9 @@ def render() -> None:
         fig.update_yaxes(title_text="Prędkość [m/s]", secondary_y=True)
         fig.update_layout(height=420, legend=dict(orientation="h"))
         st.plotly_chart(fig, config={"displaylogo": False})
+
+    if not composition.is_combustible:
+        return
 
     st.divider()
     st.subheader("Ta sama rura: GZ vs mieszaniny vs 100% H2")

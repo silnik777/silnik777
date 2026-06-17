@@ -28,9 +28,15 @@ def render() -> None:
         )
         base = GasComposition.predefined(gas_key)
         h2_pct = 0.0
-        if gas_key != "wodor_99999":
+        if base.is_combustible and gas_key != "wodor_99999":
             h2_pct = st.slider("Domieszka H2 [% mol]", 0.0, 100.0, 0.0, 5.0)
-        composition = base.blend_with_hydrogen(h2_pct / 100.0)
+        composition = base.blend_with_hydrogen(h2_pct / 100.0) if h2_pct else base
+        if not composition.is_combustible:
+            st.info(
+                "ℹ️ Gaz niepalny — tryb **CAES** (magazynowanie energii w sprężonym "
+                "powietrzu): zamiast energii chemicznej liczymy energię elektryczną "
+                "odzyskaną przy rozprężaniu bufora."
+            )
 
         c1, c2 = st.columns(2)
         diameter_mm = c1.number_input("Średnica wewn. [mm]", 50.0, 1500.0, 500.0, 10.0)
@@ -60,23 +66,50 @@ def render() -> None:
         return
 
     with col_out:
-        st.subheader("Pojemność")
-        r1 = st.columns(4)
-        r1[0].metric("Objętość geometryczna", f"{res.geometric_volume_m3:,.0f} m³")
-        r1[1].metric("Bufor (p_max−p_min)", f"{res.buffer_energy_mwh:,.1f} MWh")
-        r1[2].metric("Zawartość przy p_max", f"{res.energy_total_at_pmax_mwh:,.0f} MWh")
-        r1[3].metric("Masa bufora", f"{res.buffer_mass_kg / 1e3:,.1f} t")
-        r2 = st.columns(3)
-        r2[0].metric(
-            f"Czas pokrycia {load_mw:g} MW",
-            f"{res.buffer_hours_at_load(load_mw):,.1f} h",
-        )
-        r2[1].metric("Energia napełnienia", f"{res.compression_kwh_el:,.0f} kWh el.")
-        r2[2].metric(
-            "Koszt energetyczny cyklu",
-            f"{res.compression_kwh_el_per_mwh:.2f} kWh el./MWh",
-            help="Energia sprężania p_min→p_max na MWh energii chemicznej bufora.",
-        )
+        if res.is_combustible:
+            st.subheader("Pojemność (energia chemiczna)")
+            r1 = st.columns(4)
+            r1[0].metric("Objętość geometryczna", f"{res.geometric_volume_m3:,.0f} m³")
+            r1[1].metric("Bufor (p_max−p_min)", f"{res.buffer_energy_mwh:,.1f} MWh")
+            r1[2].metric("Zawartość przy p_max", f"{res.energy_total_at_pmax_mwh:,.0f} MWh")
+            r1[3].metric("Masa bufora", f"{res.buffer_mass_kg / 1e3:,.1f} t")
+            r2 = st.columns(3)
+            r2[0].metric(
+                f"Czas pokrycia {load_mw:g} MW",
+                f"{res.buffer_hours_at_load(load_mw):,.1f} h",
+            )
+            r2[1].metric("Energia napełnienia", f"{res.compression_kwh_el:,.0f} kWh el.")
+            r2[2].metric(
+                "Koszt energetyczny cyklu",
+                f"{res.compression_kwh_el_per_mwh:.2f} kWh el./MWh",
+                help="Energia sprężania p_min→p_max na MWh energii chemicznej bufora.",
+            )
+        else:
+            st.subheader("Magazyn CAES (energia elektryczna)")
+            r1 = st.columns(4)
+            r1[0].metric("Objętość geometryczna", f"{res.geometric_volume_m3:,.0f} m³")
+            r1[1].metric("Masa bufora powietrza", f"{res.buffer_mass_kg / 1e3:,.1f} t")
+            r1[2].metric("Energia napełnienia", f"{res.compression_kwh_el / 1e3:,.1f} MWh el.")
+            r1[3].metric("Energia odzyskana", f"{res.caes_recovered_mwh:,.1f} MWh el.")
+            r2 = st.columns(3)
+            r2[0].metric(
+                "Sprawność round-trip",
+                f"{res.caes_round_trip_efficiency * 100:.0f}%",
+                help="Odzysk (rozprężanie, M4) / napełnienie (sprężanie, M2). "
+                "Model diabatyczny (ciepło sprężania oddane do gruntu).",
+            )
+            r2[1].metric(
+                f"Czas pokrycia {load_mw:g} MW",
+                f"{res.buffer_hours_at_load(load_mw):,.2f} h",
+            )
+            st.caption(
+                "Model diabatyczny: gaz w rurze stygnie do temperatury gruntu, "
+                "więc round-trip jest niższy niż CAES adiabatycznego z magazynem "
+                "ciepła. Wynik orientacyjny — do weryfikacji projektowej."
+            )
+
+        if not res.is_combustible:
+            return
 
         st.subheader("Porównanie: GZ bazowy / mieszaniny / H2")
         rows = []

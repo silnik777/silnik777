@@ -14,6 +14,7 @@ from core.calorific import calorific_values, energy_density_at_state, quality_fl
 from core.composition import GasComposition, components_registry
 from core.config import load_data_file
 from core.gas_properties import compute_properties
+from core.methane_number import methane_number_assessment
 from core.units import (
     REFERENCE_CONDITIONS,
     bar_to_pa,
@@ -71,7 +72,7 @@ def _composition_editor(default_key: str) -> GasComposition | None:
         column_config={
             "Składnik": st.column_config.TextColumn(disabled=True),
             "Udział [% mol]": st.column_config.NumberColumn(
-                min_value=0.0, max_value=100.0, step=0.01, format="%.4f"
+                min_value=0.0, max_value=100.0, step=0.0001, format="%.4f"
             ),
         },
         hide_index=True,
@@ -171,6 +172,15 @@ def render() -> None:
     with col_out:
         st.subheader("Zgodność jakościowa")
         _show_flags(quality_flags(composition, cal, h2_limit_mol_pct=float(h2_limit)))
+
+        if composition.is_combustible:
+            mn = methane_number_assessment(composition)
+            ok_txt = "✅ " if mn.ok else "❌ "
+            text = (
+                f"**Liczba metanowa (MN)**: {mn.value:.1f} " f"(limit silnikowy ≥ {mn.min_limit:g})"
+            )
+            (st.success if mn.ok else st.error)(ok_txt + text)
+            st.caption(f"Źródło: {mn.source} · {mn.note}")
 
         for w in props.warnings:
             st.warning(w)

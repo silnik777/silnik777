@@ -95,6 +95,13 @@ components:
     hhv_molar_25c_kj_per_mol: 0.0
     h2o_mol_per_mol: 0
     source: "ISO 6976:2016 (składnik niepalny)"
+  Ar:
+    name_pl: "argon"
+    formula: "Ar"
+    coolprop_name: "Argon"
+    hhv_molar_25c_kj_per_mol: 0.0
+    h2o_mol_per_mol: 0
+    source: "Składnik niepalny (głównie w powietrzu, ~0,93% mol)"
   H2:
     name_pl: "wodór"
     formula: "H2"
