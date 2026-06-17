@@ -77,6 +77,16 @@ literatura — pełna lista w `tests/reference_data.py`).
 | 6 | M10 — ekonomia (LCOx/NPV/IRR/tornado), M11 — benchmarking, M12 — linepack | ✅ |
 | 7 | M14 — karta projektu, eksporty XLSX/CSV, instrukcja, skrypty startowe | ✅ |
 
+### Rozszerzenia po Etapie 7
+
+- **M1 — liczba metanowa** (`core/methane_number.py`, `data/methane_number.yaml`):
+  model liniowy, ścisły na osi CH₄/H₂; zastrzeżenie EN 16726/ASTM D8221.
+  Edytor składu przyjmuje udziały molowe z dokładnością do 4 miejsc po przecinku.
+- **Powietrze i CAES** (`data/gas_compositions.yaml` — skład „powietrze", argon
+  w `components.yaml`): M3 liczy hydraulikę powietrza, M12 działa jako magazyn
+  sprężonego powietrza (energia odzyskana z rozprężania, round-trip; model
+  diabatyczny).
+
 ## Ścieżka wdrożenia webowego (Azure)
 
 Docelowo użytkownicy nic nie instalują — wchodzą na firmowy adres www

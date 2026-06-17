@@ -55,6 +55,19 @@ odpowiadać; kartę przeglądarki można zamknąć w dowolnym momencie.
 4. **Eksportuj**: przyciski „⬇️ XLSX" / „⬇️ CSV" — pliki otwierają się
    w Excelu i wczytują do Power BI bez dodatkowych ustawień.
 
+### Funkcje dodatkowe
+
+- **M1 — liczba metanowa**: obok liczby Wobbego pokazywana jest liczba
+  metanowa (odporność na spalanie stukowe w silnikach gazowych) z flagą
+  limitu silnikowego. Spada z domieszką H₂; na osi CH₄/H₂ wynik jest ścisły.
+  Wartość certyfikacyjna wymaga metody EN 16726/ASTM D8221 — narzędzie podaje
+  szacunek modelem liniowym (oznaczone w UI). Udziały molowe można wpisywać
+  z dokładnością do 4 miejsc po przecinku.
+- **M3 / M12 — powietrze i magazyn CAES**: wybierz skład „Powietrze".
+  W M3 policzysz hydraulikę przepływu powietrza starym gazociągiem; w M12
+  moduł przełącza się w tryb **CAES** (magazyn sprężonego powietrza) i liczy
+  energię elektryczną odzyskaną z rozprężania oraz sprawność round-trip.
+
 ## 4. Scenariusze cenowe (M5)
 
 - Wbudowane scenariusze: **niski / bazowy / wysoki** (ceny gazu, energii,
@@ -71,8 +84,9 @@ Wszystkie dane domyślne są w katalogu **`data/`** w plikach tekstowych
 
 | Plik | Co zawiera |
 |---|---|
-| `gas_compositions.yaml` | składy gazów (tu podmień typowy skład E na własną analizę) |
+| `gas_compositions.yaml` | składy gazów, w tym powietrze do CAES (podmień typowy skład E na własną analizę) |
 | `quality_limits.yaml` | widełki Wobbego, progi %H₂ |
+| `methane_number.yaml` | liczba metanowa składników i limit silnikowy |
 | `compressors.yaml`, `expanders.yaml` | sprawności i mapy maszyn |
 | `reduction_stations.yaml` | warianty stacji, źródła ciepła, ceny robocze |
 | `price_scenarios.yaml` | scenariusze cenowe |
