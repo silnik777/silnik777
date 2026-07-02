@@ -67,6 +67,16 @@ odpowiadać; kartę przeglądarki można zamknąć w dowolnym momencie.
   W M3 policzysz hydraulikę przepływu powietrza starym gazociągiem; w M12
   moduł przełącza się w tryb **CAES** (magazyn sprężonego powietrza) i liczy
   energię elektryczną odzyskaną z rozprężania oraz sprawność round-trip.
+- **M3 — „Co policzyć?"**: wybierz wielkość wynikową — **ciśnienie wylotowe
+  P₂** (podajesz przepływ i rurę), **maksymalny przepływ** (podajesz wymagane
+  P₂) albo **dobór średnicy** (podajesz przepływ i wymagane P₂) — nie trzeba
+  znać wszystkiego naraz.
+- **M15 — Sieć gazowa (graf)**: narysuj prostą sieć dwiema tabelami
+  (węzły: zasilania z ciśnieniem / odbiory w Nm³/h; odcinki: skąd–dokąd,
+  średnica, długość, materiał — także z pętlami). Narzędzie policzy ciśnienia
+  we wszystkich węzłach, przepływy i kierunki w odcinkach oraz narysuje
+  schemat sieci z flagami przekroczeń prędkości. Uwaga: jeden skład gazu
+  w całej sieci.
 
 ## 4. Scenariusze cenowe (M5)
 

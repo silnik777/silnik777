@@ -86,6 +86,15 @@ literatura — pełna lista w `tests/reference_data.py`).
   w `components.yaml`): M3 liczy hydraulikę powietrza, M12 działa jako magazyn
   sprężonego powietrza (energia odzyskana z rozprężania, round-trip; model
   diabatyczny).
+- **M3 — elastyczne tryby obliczeń**: wybór „Co policzyć?" — ciśnienie
+  wylotowe P₂ (z zadanego przepływu), maksymalny przepływ (z wymaganego P₂)
+  albo dobór minimalnej średnicy rury (`core.pipeline.min_diameter_m`).
+- **M15 — Sieć gazowa (graf)** (`core/network.py`): proste grafy węzłów
+  (ciśnieniowe/odbiorowe) i odcinków, w tym pętle; solver węzłowy
+  Newtona-Raphsona na p² z oporami odcinków kalibrowanymi modelem marszowym
+  M3 (GERG-2008); wynik: ciśnienia w węzłach, przepływy/prędkości/kierunki
+  w odcinkach, schemat sieci. Jeden skład gazu na sieć (śledzenie mieszania
+  w węzłach — planowane rozszerzenie).
 
 ## Ścieżka wdrożenia webowego (Azure)
 

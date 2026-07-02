@@ -115,3 +115,10 @@ def test_m14_page_renders_without_exception():
     assert not at.exception
     assert not at.error, [e.value for e in at.error]
     assert at.title[0].value.startswith("M14")
+
+
+def test_m15_page_renders_without_exception():
+    at = _render_view("m15_network")
+    assert not at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert at.title[0].value.startswith("M15")

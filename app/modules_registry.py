@@ -24,6 +24,7 @@ from app.views import (
     m12_linepack,
     m13_cold_reduction,
     m14_project_card,
+    m15_network,
 )
 
 
@@ -87,6 +88,21 @@ MODULES: list[ModuleInfo] = [
         stage=2,
         icon="🛢️",
         render=m03_pipeline.render,
+    ),
+    ModuleInfo(
+        code="M15",
+        slug="m15-siec-gazowa",
+        title="M15 · Sieć gazowa (graf)",
+        section="Właściwości i przepływ",
+        description=(
+            "Proste grafy sieci: węzły ciśnieniowe (zasilania) i odbiorowe, "
+            "odcinki z pętlami; solver węzłowy Newtona na p² z oporami "
+            "kalibrowanymi modelem marszowym M3 (GERG-2008); ciśnienia w "
+            "węzłach, przepływy i prędkości w odcinkach, schemat sieci."
+        ),
+        stage=8,
+        icon="🕸️",
+        render=m15_network.render,
     ),
     ModuleInfo(
         code="M4",
