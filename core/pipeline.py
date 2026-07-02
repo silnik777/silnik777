@@ -339,3 +339,63 @@ def max_mass_flow_kg_per_s(
         else:
             hi = mid
     return lo
+
+
+def min_diameter_m(
+    composition: GasComposition,
+    length_m: float,
+    roughness_m: float,
+    mass_flow_kg_per_s: float,
+    pressure_in_pa: float,
+    pressure_out_min_pa: float,
+    temperature_k: float,
+    iterations: int = 40,
+    d_hi_m: float = 1.5,
+) -> float:
+    """Minimalna średnica wewnętrzna, przy której p_wylot ≥ p_min (bisekcja).
+
+    Dobór rury dla zadanego przepływu i widełek ciśnień: większa średnica =
+    mniejszy spadek ciśnienia, więc funkcja p_wylot(D) jest monotonicznie
+    rosnąca — bisekcja w przedziale [d_lo, d_hi] do zbieżności.
+
+    Raises:
+        ValueError: gdy nawet ``d_hi_m`` nie wystarcza (zwiększ średnicę
+            maksymalną albo widełki ciśnień) lub dane są niefizyczne.
+    """
+    if pressure_out_min_pa >= pressure_in_pa:
+        raise ValueError("Ciśnienie wylotowe musi być niższe od wlotowego.")
+    if mass_flow_kg_per_s <= 0:
+        raise ValueError("Strumień masy musi być dodatni.")
+
+    def outlet_pressure(d_m: float) -> float | None:
+        try:
+            return pressure_profile(
+                composition,
+                d_m,
+                length_m,
+                roughness_m,
+                mass_flow_kg_per_s,
+                pressure_in_pa,
+                temperature_k,
+                n_segments=25,
+                inlet_check=False,
+            ).pressure_out_pa
+        except ValueError:
+            return None
+
+    p_hi = outlet_pressure(d_hi_m)
+    if p_hi is None or p_hi < pressure_out_min_pa:
+        raise ValueError(
+            f"Nawet średnica {d_hi_m * 1e3:.0f} mm nie utrzyma ciśnienia "
+            f"{pressure_out_min_pa / 1e5:.1f} bar przy przepływie "
+            f"{mass_flow_kg_per_s:.3g} kg/s — zwiększ średnicę albo zmniejsz przepływ."
+        )
+    lo, hi = 0.01, d_hi_m
+    for _ in range(iterations):
+        mid = (lo + hi) / 2.0
+        p_out = outlet_pressure(mid)
+        if p_out is not None and p_out >= pressure_out_min_pa:
+            hi = mid
+        else:
+            lo = mid
+    return hi

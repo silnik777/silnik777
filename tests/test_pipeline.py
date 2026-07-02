@@ -164,6 +164,40 @@ class TestAnalyticCrossCheck:
         assert dp2_model == pytest.approx(dp2_analytic, rel=0.03)
 
 
+class TestDiameterSolver:
+    ARGS = dict(
+        length_m=20_000.0,
+        roughness_m=5e-5,
+        pressure_in_pa=bar_to_pa(55),
+        pressure_out_min_pa=bar_to_pa(45),
+        temperature_k=T,
+    )
+
+    def test_solved_diameter_meets_outlet_pressure(self):
+        """Dobrana średnica daje p_wylot ≈ p_min (z marginesem bisekcji)."""
+        from core.pipeline import min_diameter_m
+
+        d = min_diameter_m(CH4, mass_flow_kg_per_s=20.0, **self.ARGS)
+        res = pressure_profile(CH4, d, 20_000.0, 5e-5, 20.0, bar_to_pa(55), T)
+        assert res.pressure_out_pa >= bar_to_pa(45) * 0.999
+        # tuż poniżej dobranej średnicy ciśnienie spada poniżej progu
+        res_small = pressure_profile(CH4, d * 0.95, 20_000.0, 5e-5, 20.0, bar_to_pa(55), T)
+        assert res_small.pressure_out_pa < bar_to_pa(45)
+
+    def test_higher_flow_needs_larger_diameter(self):
+        from core.pipeline import min_diameter_m
+
+        d_low = min_diameter_m(CH4, mass_flow_kg_per_s=10.0, **self.ARGS)
+        d_high = min_diameter_m(CH4, mass_flow_kg_per_s=30.0, **self.ARGS)
+        assert d_high > d_low
+
+    def test_infeasible_raises(self):
+        from core.pipeline import min_diameter_m
+
+        with pytest.raises(ValueError, match="nie utrzyma|wylotowe"):
+            min_diameter_m(CH4, mass_flow_kg_per_s=5000.0, **self.ARGS)
+
+
 class TestMaterials:
     def test_three_materials_with_hdpe(self):
         mats = pipe_materials()

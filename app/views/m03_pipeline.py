@@ -11,7 +11,12 @@ from core.composition import GasComposition
 from core.compression import compress
 from core.config import load_data_file
 from core.gas_properties import compute_properties
-from core.pipeline import max_mass_flow_kg_per_s, pipe_materials, pressure_profile
+from core.pipeline import (
+    max_mass_flow_kg_per_s,
+    min_diameter_m,
+    pipe_materials,
+    pressure_profile,
+)
 from core.units import bar_to_pa, celsius_to_kelvin
 
 
@@ -89,10 +94,20 @@ def render() -> None:
                 "powietrzu (CAES) policzysz w module M12."
             )
 
+        st.subheader("Co policzyć?")
+        mode = st.radio(
+            "Wielkość wynikowa",
+            ["Ciśnienie wylotowe P₂", "Maksymalny przepływ", "Dobór średnicy rury"],
+            help="Podaj pozostałe parametry — narzędzie policzy wybraną wielkość.",
+            label_visibility="collapsed",
+        )
+
         st.subheader("Rura")
-        c1, c2 = st.columns(2)
-        diameter_mm = c1.number_input("Średnica wewn. [mm]", 20.0, 1500.0, 300.0, 10.0)
-        length_km = c2.number_input("Długość [km]", 0.1, 1000.0, 20.0, 1.0)
+        cc = st.columns(2)
+        diameter_mm = None
+        if mode != "Dobór średnicy rury":
+            diameter_mm = cc[0].number_input("Średnica wewn. [mm]", 20.0, 1500.0, 300.0, 10.0)
+        length_km = cc[1].number_input("Długość [km]", 0.1, 1000.0, 20.0, 1.0)
 
         materials = pipe_materials()
         mat_key = st.selectbox(
@@ -111,10 +126,16 @@ def render() -> None:
             st.caption(f"ℹ️ {mat.note}")
 
         st.subheader("Warunki pracy")
-        c3, c4, c5 = st.columns(3)
-        p_in_bar = c3.number_input("p wlot [bar(a)]", 1.2, 100.0, 55.0, 1.0)
-        p_out_bar = c4.number_input("p wylot min [bar(a)]", 1.1, 99.0, 45.0, 1.0)
-        t_c = c5.number_input("T gazu [°C]", -20.0, 60.0, 10.0, 1.0)
+        p_in_bar = st.number_input("Ciśnienie wlotowe P₁ [bar(a)]", 1.2, 100.0, 55.0, 1.0)
+        p_out_bar = None
+        if mode != "Ciśnienie wylotowe P₂":
+            p_out_bar = st.number_input(
+                "Wymagane ciśnienie wylotowe P₂ [bar(a)]", 1.1, 99.0, 45.0, 1.0
+            )
+        flow_nm3_h = None
+        if mode != "Maksymalny przepływ":
+            flow_nm3_h = st.number_input("Przepływ [Nm³/h]", 1.0, 5_000_000.0, 50_000.0, 1000.0)
+        t_c = st.number_input("T gazu [°C]", -20.0, 60.0, 10.0, 1.0)
 
         v_limits = load_data_file("pipelines.yaml")["velocity_limits_m_per_s"]
         v_limit_key = st.selectbox(
@@ -124,39 +145,56 @@ def render() -> None:
         )
         v_max_limit = float(v_limits[v_limit_key]["max"])
 
-    if p_out_bar >= p_in_bar:
+    if p_out_bar is not None and p_out_bar >= p_in_bar:
         st.error("Ciśnienie wylotowe musi być niższe od wlotowego.")
         st.stop()
 
-    p_in, p_out = bar_to_pa(p_in_bar), bar_to_pa(p_out_bar)
+    p_in = bar_to_pa(p_in_bar)
     t_k = celsius_to_kelvin(t_c)
-    d_m = diameter_mm / 1e3
     l_m = length_km * 1e3
     rough_m = roughness_mm / 1e3
+    rho_n = compute_properties(composition, 101_325.0, 273.15).density_kg_per_m3
+    mass_flow = flow_nm3_h * rho_n / 3600.0 if flow_nm3_h else None
 
     try:
-        m_max = max_mass_flow_kg_per_s(composition, d_m, l_m, rough_m, p_in, p_out, t_k)
-        if m_max <= 0:
-            st.error("Brak przepustowości dla zadanych ciśnień — sprawdź parametry.")
-            st.stop()
-        result = pressure_profile(composition, d_m, l_m, rough_m, m_max, p_in, t_k)
+        if mode == "Ciśnienie wylotowe P₂":
+            d_m = diameter_mm / 1e3
+            result = pressure_profile(composition, d_m, l_m, rough_m, mass_flow, p_in, t_k)
+            header = f"Wynik: ciśnienie wylotowe P₂ = {result.pressure_out_pa / 1e5:.2f} bar(a)"
+        elif mode == "Maksymalny przepływ":
+            d_m = diameter_mm / 1e3
+            p_out = bar_to_pa(p_out_bar)
+            m_flow = max_mass_flow_kg_per_s(composition, d_m, l_m, rough_m, p_in, p_out, t_k)
+            if m_flow <= 0:
+                st.error("Brak przepustowości dla zadanych ciśnień — sprawdź parametry.")
+                st.stop()
+            result = pressure_profile(composition, d_m, l_m, rough_m, m_flow, p_in, t_k)
+            header = "Wynik: przepustowość maksymalna (P₂ = wymagane)"
+        else:  # Dobór średnicy rury
+            p_out = bar_to_pa(p_out_bar)
+            d_m = min_diameter_m(composition, l_m, rough_m, mass_flow, p_in, p_out, t_k)
+            result = pressure_profile(composition, d_m, l_m, rough_m, mass_flow, p_in, t_k)
+            header = f"Wynik: minimalna średnica wewnętrzna = {d_m * 1e3:.0f} mm"
     except ValueError as exc:
         st.error(str(exc))
         st.stop()
         return
 
     with col_out:
-        st.subheader("Przepustowość maksymalna (p wylot = p min)")
+        st.subheader(header)
         for w in result.warnings:
             st.warning(w)
         r1 = st.columns(4)
-        r1[0].metric("Strumień masy", f"{result.mass_flow_kg_per_s:.2f} kg/s")
-        r1[1].metric("Strumień objętości", f"{result.volume_flow_nm3_per_h():,.0f} Nm³/h")
+        r1[0].metric("Ciśnienie wylotowe P₂", f"{result.pressure_out_pa / 1e5:.2f} bar(a)")
+        r1[1].metric("Średnica wewn.", f"{d_m * 1e3:.0f} mm")
+        r1[2].metric("Strumień masy", f"{result.mass_flow_kg_per_s:.2f} kg/s")
+        r1[3].metric("Strumień objętości", f"{result.volume_flow_nm3_per_h():,.0f} Nm³/h")
+        r1b = st.columns(2)
         if composition.is_combustible:
-            r1[2].metric("Przepustowość energet.", f"{result.energy_flow_mw():.1f} MW")
+            r1b[0].metric("Przepustowość energet.", f"{result.energy_flow_mw():.1f} MW")
         else:
-            r1[2].metric("Przepustowość energet.", "n.d. (gaz niepalny)")
-        r1[3].metric("Spadek ciśnienia", f"{result.pressure_drop_pa / 1e5:.2f} bar")
+            r1b[0].metric("Przepustowość energet.", "n.d. (gaz niepalny)")
+        r1b[1].metric("Spadek ciśnienia ΔP", f"{result.pressure_drop_pa / 1e5:.2f} bar")
         r2 = st.columns(4)
         v_max = result.max_velocity_m_per_s
         r2[0].metric(
@@ -215,9 +253,12 @@ def render() -> None:
 
     st.divider()
     st.subheader("Ta sama rura: GZ vs mieszaniny vs 100% H2")
+    # Wspólne ciśnienie wylotowe do porównania maks. przepływów: wymagane P2
+    # (tryby 2/3) albo policzone P2 gazu bazowego (tryb „P2 z przepływu").
+    p_out_ref = bar_to_pa(p_out_bar) if p_out_bar is not None else result.pressure_out_pa
     base_for_cmp = GasComposition.predefined("gaz_E_typowy") if gas_key == "wodor_99999" else base
     try:
-        df = _gas_comparison(base_for_cmp.fractions, d_m, l_m, rough_m, p_in, p_out, t_k)
+        df = _gas_comparison(base_for_cmp.fractions, d_m, l_m, rough_m, p_in, p_out_ref, t_k)
     except ValueError as exc:
         st.error(str(exc))
         st.stop()
