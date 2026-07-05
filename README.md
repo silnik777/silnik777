@@ -89,12 +89,16 @@ literatura — pełna lista w `tests/reference_data.py`).
 - **M3 — elastyczne tryby obliczeń**: wybór „Co policzyć?" — ciśnienie
   wylotowe P₂ (z zadanego przepływu), maksymalny przepływ (z wymaganego P₂)
   albo dobór minimalnej średnicy rury (`core.pipeline.min_diameter_m`).
-- **M15 — Sieć gazowa (graf)** (`core/network.py`): proste grafy węzłów
-  (ciśnieniowe/odbiorowe) i odcinków, w tym pętle; solver węzłowy
-  Newtona-Raphsona na p² z oporami odcinków kalibrowanymi modelem marszowym
-  M3 (GERG-2008); wynik: ciśnienia w węzłach, przepływy/prędkości/kierunki
-  w odcinkach, schemat sieci. Jeden skład gazu na sieć (śledzenie mieszania
-  w węzłach — planowane rozszerzenie).
+- **M15 — Sieć gazowa (graf)** (`core/network.py`): grafy węzłów i odcinków
+  (w tym pętle); solver węzłowy Newtona-Raphsona na p² z oporami odcinków
+  kalibrowanymi modelem marszowym M3 (GERG-2008). **Śledzenie składu:**
+  składy definiowane na punktach wejścia (zasilania ciśnieniowe + węzły
+  wtłoczenia biometanu/H₂ o stałym strumieniu), skład każdego węzła liczony
+  mieszaniem molowym dopływów po DAG-u kierunków przepływu, udziały źródeł
+  śledzone jak znaczniki (strefy zasilania/mieszania). Wynik: ciśnienia,
+  przepływy, skład i parametry gazu w każdym węźle (Hs, Ws, %H₂, liczba
+  metanowa) z oceną wymogów gazu wysokometanowego E; pobory objętościowe
+  przeliczane wg lokalnego składu.
 
 ## Ścieżka wdrożenia webowego (Azure)
 

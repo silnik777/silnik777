@@ -72,11 +72,15 @@ odpowiadać; kartę przeglądarki można zamknąć w dowolnym momencie.
   P₂) albo **dobór średnicy** (podajesz przepływ i wymagane P₂) — nie trzeba
   znać wszystkiego naraz.
 - **M15 — Sieć gazowa (graf)**: narysuj prostą sieć dwiema tabelami
-  (węzły: zasilania z ciśnieniem / odbiory w Nm³/h; odcinki: skąd–dokąd,
-  średnica, długość, materiał — także z pętlami). Narzędzie policzy ciśnienia
-  we wszystkich węzłach, przepływy i kierunki w odcinkach oraz narysuje
-  schemat sieci z flagami przekroczeń prędkości. Uwaga: jeden skład gazu
-  w całej sieci.
+  (węzły i odcinki, także z pętlami). Trzy typy węzłów: **zasilanie**
+  (ciśnienie + skład), **pobór** (Nm³/h) oraz **wtłoczenie** — biometanownia
+  lub elektrolizer H₂ o zadanym strumieniu i własnym składzie. Narzędzie
+  policzy ciśnienia i przepływy, **skład gazu w każdym węźle** (mieszanie
+  molowe), **strefy mieszania** (tabela pochodzenia gazu ze źródeł + mapa
+  kolorowana wg %H₂ lub Wobbego) oraz oceni, czy gaz w każdym węźle spełnia
+  **wymogi gazu wysokometanowego E** (Wobbe, próg %H₂, liczba metanowa).
+  Uwaga: Ws czystego H₂ mieści się w widełkach E — dlatego kontrola %H₂
+  i liczby metanowej jest niezbędna.
 
 ## 4. Scenariusze cenowe (M5)
 
