@@ -94,11 +94,14 @@ class TestLinepackIntegration:
 
     def _single_shot_fill_kwh(self, comp):
         """Pojedynczy skok: cała Δm sprężana p_min→p_max (zawyżenie)."""
+        import math
+
         from core.compression import compress
 
         p_min, p_max = self.ARGS["pressure_min_pa"], self.ARGS["pressure_max_pa"]
-        rho = lambda p: compute_properties(comp, p, self.ARGS["temperature_k"]).density_kg_per_m3
-        import math
+
+        def rho(p):
+            return compute_properties(comp, p, self.ARGS["temperature_k"]).density_kg_per_m3
 
         vol = math.pi * self.ARGS["diameter_m"] ** 2 / 4.0 * self.ARGS["length_m"]
         dm = (rho(p_max) - rho(p_min)) * vol
@@ -123,7 +126,10 @@ class TestLinepackIntegration:
         from core.units import j_to_kwh
 
         p_min, p_max = self.ARGS["pressure_min_pa"], self.ARGS["pressure_max_pa"]
-        rho = lambda p: compute_properties(AIR, p, self.ARGS["temperature_k"]).density_kg_per_m3
+
+        def rho(p):
+            return compute_properties(AIR, p, self.ARGS["temperature_k"]).density_kg_per_m3
+
         vol = math.pi * self.ARGS["diameter_m"] ** 2 / 4.0 * self.ARGS["length_m"]
         dm = (rho(p_max) - rho(p_min)) * vol
         w_out = expand(AIR, p_max, self.ARGS["temperature_k"], p_min, eta=0.80).work_j_per_kg
@@ -135,3 +141,96 @@ class TestLinepackIntegration:
     def test_round_trip_still_plausible_after_integration(self):
         res = linepack(AIR, **self.ARGS)
         assert 0.2 < res.caes_round_trip_efficiency < 1.0
+
+
+class TestPressureExergy:
+    """Energia ciśnienia (eksergia izotermiczna) bufora."""
+
+    ARGS = dict(
+        diameter_m=0.5,
+        length_m=50_000.0,
+        pressure_min_pa=bar_to_pa(40),
+        pressure_max_pa=bar_to_pa(70),
+        temperature_k=283.15,
+    )
+
+    def test_pressure_exergy_positive(self):
+        assert linepack(AIR, **self.ARGS).pressure_exergy_mwh > 0.0
+        assert linepack(E_GAS, **self.ARGS).pressure_exergy_mwh > 0.0
+
+    def test_chemical_dominates_pressure_for_fuel_gas(self):
+        """Dla gazu palnego energia chemiczna ≫ energia ciśnienia (≥100×)."""
+        res = linepack(E_GAS, **self.ARGS)
+        assert res.buffer_energy_mwh > 100.0 * res.pressure_exergy_mwh
+
+    def test_air_has_no_chemical_only_pressure(self):
+        res = linepack(AIR, **self.ARGS)
+        assert res.buffer_energy_mwh == 0.0
+        assert res.pressure_exergy_mwh > 0.0
+
+    def test_exergy_matches_isothermal_cycle_fill(self):
+        """Energia ciśnienia = napełnianie modelu izotermicznego (ta sama całka)."""
+        from core.linepack import cycle_analysis
+
+        res = linepack(AIR, **self.ARGS)
+        iso = cycle_analysis(
+            AIR,
+            self.ARGS["diameter_m"],
+            self.ARGS["length_m"],
+            self.ARGS["pressure_min_pa"],
+            self.ARGS["pressure_max_pa"],
+            self.ARGS["temperature_k"],
+        )[0]
+        assert res.pressure_exergy_mwh == pytest.approx(iso.fill_mwh, rel=1e-9)
+
+
+class TestCycleAnalysis:
+    """Analiza typów sprężania/rozprężania (izotermiczne/izentropowe/politropowe)."""
+
+    ARGS = dict(
+        diameter_m=0.5,
+        length_m=50_000.0,
+        pressure_min_pa=bar_to_pa(40),
+        pressure_max_pa=bar_to_pa(70),
+        temperature_k=283.15,
+    )
+
+    def _models(self):
+        from core.linepack import cycle_analysis
+
+        return cycle_analysis(
+            AIR,
+            self.ARGS["diameter_m"],
+            self.ARGS["length_m"],
+            self.ARGS["pressure_min_pa"],
+            self.ARGS["pressure_max_pa"],
+            self.ARGS["temperature_k"],
+        )
+
+    def test_three_models(self):
+        keys = [m.key for m in self._models()]
+        assert keys == ["izotermiczne", "izentropowe", "politropowe"]
+
+    def test_isothermal_round_trip_unity(self):
+        """Izotermiczny odwracalny: round-trip = 100%, odzysk = napełnienie."""
+        iso = self._models()[0]
+        assert iso.round_trip == pytest.approx(1.0, abs=1e-9)
+        assert iso.recovered_mwh == pytest.approx(iso.fill_mwh, rel=1e-9)
+
+    def test_isothermal_is_min_work_max_recovery(self):
+        """Izotermiczne: najmniejszy nakład i największy odzysk (granica II zas.)."""
+        iso, isen, poly = self._models()
+        assert iso.fill_mwh < isen.fill_mwh < poly.fill_mwh
+        assert iso.recovered_mwh > isen.recovered_mwh > poly.recovered_mwh
+
+    def test_round_trip_ordering(self):
+        """Round-trip: izotermiczny (1) > izentropowy > politropowy."""
+        iso, isen, poly = self._models()
+        assert iso.round_trip > isen.round_trip > poly.round_trip
+        assert isen.round_trip < 1.0  # diabatyczność mimo idealnych maszyn
+
+    def test_bad_geometry_raises(self):
+        from core.linepack import cycle_analysis
+
+        with pytest.raises(ValueError, match="p_max"):
+            cycle_analysis(AIR, 0.5, 50_000.0, bar_to_pa(70), bar_to_pa(40), 283.15)

@@ -8,7 +8,7 @@ import streamlit as st
 
 from core.composition import GasComposition
 from core.config import load_data_file
-from core.linepack import linepack
+from core.linepack import cycle_analysis, linepack
 from core.units import bar_to_pa, celsius_to_kelvin
 
 
@@ -67,11 +67,22 @@ def render() -> None:
 
     with col_out:
         if res.is_combustible:
-            st.subheader("Pojemność (energia chemiczna)")
+            st.subheader("Pojemność bufora — energia chemiczna vs ciśnienia")
             r1 = st.columns(4)
             r1[0].metric("Objętość geometryczna", f"{res.geometric_volume_m3:,.0f} m³")
-            r1[1].metric("Bufor (p_max−p_min)", f"{res.buffer_energy_mwh:,.1f} MWh")
-            r1[2].metric("Zawartość przy p_max", f"{res.energy_total_at_pmax_mwh:,.0f} MWh")
+            r1[1].metric(
+                "Energia chemiczna (Hi)",
+                f"{res.buffer_energy_mwh:,.1f} MWh",
+                help="Wartość opałowa bufora roboczego Δm·Hi (energia paliwa).",
+            )
+            r1[2].metric(
+                "Energia ciśnienia (eksergia)",
+                f"{res.pressure_exergy_mwh:,.2f} MWh",
+                help="Maksymalna odzyskiwalna praca mechaniczna sprężonego gazu "
+                "(eksergia izotermiczna, T=const). Dwa–trzy rzędy wielkości mniejsza "
+                "od energii chemicznej — dlatego linepack gazu palnego magazynuje "
+                "przede wszystkim paliwo, a nie ciśnienie.",
+            )
             r1[3].metric("Masa bufora", f"{res.buffer_mass_kg / 1e3:,.1f} t")
             r2 = st.columns(3)
             r2[0].metric(
@@ -84,31 +95,84 @@ def render() -> None:
                 f"{res.compression_kwh_el_per_mwh:.2f} kWh el./MWh",
                 help="Energia sprężania p_min→p_max na MWh energii chemicznej bufora.",
             )
+            st.caption(
+                f"Zawartość całkowita przy p_max: **{res.energy_total_at_pmax_mwh:,.0f} MWh** "
+                "(Hi). Energia ciśnienia to potencjał mechaniczny (CAES) — dla gazu "
+                "palnego marginalny wobec energii chemicznej."
+            )
         else:
-            st.subheader("Magazyn CAES (energia elektryczna)")
+            st.subheader("Magazyn CAES — energia potencjalna (ciśnienia)")
             r1 = st.columns(4)
             r1[0].metric("Objętość geometryczna", f"{res.geometric_volume_m3:,.0f} m³")
             r1[1].metric("Masa bufora powietrza", f"{res.buffer_mass_kg / 1e3:,.1f} t")
-            r1[2].metric("Energia napełnienia", f"{res.compression_kwh_el / 1e3:,.1f} MWh el.")
-            r1[3].metric("Energia odzyskana", f"{res.caes_recovered_mwh:,.1f} MWh el.")
+            r1[2].metric(
+                "Energia potencjalna (ciśnienia)",
+                f"{res.pressure_exergy_mwh:,.2f} MWh",
+                help="Eksergia izotermiczna bufora = maksymalna odzyskiwalna praca "
+                "mechaniczna (granica II zasady, T=const). Górne ograniczenie odzysku "
+                "przy dowolnej technologii rozprężania.",
+            )
+            r1[3].metric(
+                "Odzysk realny (politropowo)",
+                f"{res.caes_recovered_mwh:,.2f} MWh el.",
+                help="Rozprężanie w ekspanderze (η) + napęd mech.-el. — poniżej "
+                "energii potencjalnej (straty maszyn i diabatyczność magazynu).",
+            )
             r2 = st.columns(3)
             r2[0].metric(
-                "Sprawność round-trip",
+                "Round-trip realny",
                 f"{res.caes_round_trip_efficiency * 100:.0f}%",
-                help="Odzysk (rozprężanie, M4) / napełnienie (sprężanie, M2). "
-                "Model diabatyczny (ciepło sprężania oddane do gruntu).",
+                help="Odzysk (rozprężanie, M4) / napełnienie (sprężanie, M2), "
+                "model diabatyczny (ciepło sprężania oddane do gruntu).",
             )
-            r2[1].metric(
+            r2[1].metric("Energia napełnienia", f"{res.compression_kwh_el / 1e3:,.2f} MWh el.")
+            r2[2].metric(
                 f"Czas pokrycia {load_mw:g} MW",
                 f"{res.buffer_hours_at_load(load_mw):,.2f} h",
             )
-            st.caption(
-                "Model diabatyczny: gaz w rurze stygnie do temperatury gruntu, "
-                "więc round-trip jest niższy niż CAES adiabatycznego z magazynem "
-                "ciepła. Wynik orientacyjny — do weryfikacji projektowej."
-            )
 
-        if not res.is_combustible:
+            st.subheader("Analiza typów sprężania i rozprężania")
+            models = cycle_analysis(
+                composition,
+                diameter_mm / 1e3,
+                length_km * 1e3,
+                bar_to_pa(p_min_bar),
+                bar_to_pa(p_max_bar),
+                celsius_to_kelvin(t_c),
+            )
+            mdf = pd.DataFrame(
+                [
+                    {
+                        "Model cyklu": m.name_pl,
+                        "Napełnianie [MWh]": m.fill_mwh,
+                        "Odzysk [MWh]": m.recovered_mwh,
+                        "Round-trip [%]": m.round_trip * 100.0,
+                        "Uwaga": m.note,
+                    }
+                    for m in models
+                ]
+            )
+            mfig = go.Figure()
+            mfig.add_trace(
+                go.Bar(name="napełnianie", x=mdf["Model cyklu"], y=mdf["Napełnianie [MWh]"])
+            )
+            mfig.add_trace(go.Bar(name="odzysk", x=mdf["Model cyklu"], y=mdf["Odzysk [MWh]"]))
+            mfig.update_layout(
+                barmode="group",
+                yaxis_title="MWh (na wale)",
+                height=360,
+                legend=dict(orientation="h"),
+            )
+            st.plotly_chart(mfig, config={"displaylogo": False})
+            st.dataframe(mdf.round(2), hide_index=True, width="stretch")
+            st.caption(
+                "Wartości na wale (bez napędu mech.-el.). **Izotermiczne** = granica "
+                "II zasady (round-trip 100%, odzysk = energia potencjalna). "
+                "**Izentropowe** mimo idealnych maszyn ma round-trip < 100% — w rurze "
+                "zakopanej ciepło sprężania ucieka do gruntu (magazyn diabatyczny). "
+                "**Politropowe** = maszyny rzeczywiste. Wynik orientacyjny — do "
+                "weryfikacji projektowej."
+            )
             return
 
         st.subheader("Porównanie: GZ bazowy / mieszaniny / H2")
@@ -164,6 +228,22 @@ bufor o ~10–12% względem przybliżenia stałym Z̄.
 **Bufor roboczy:** `Δm·Hi` między poziomami ciśnień średnich p_min/p_max
 (uproszczenie: pomijamy profil ciśnienia wzdłuż odcinka — dla oszacowań
 plus/minus kilka procent). **Dynamika:** czas = energia bufora / pobór.
+
+**Energia chemiczna vs ciśnienia:** bufor gazu palnego magazynuje przede
+wszystkim **energię chemiczną** (Hi). **Energia ciśnienia** (eksergia) to
+maksymalna odzyskiwalna praca mechaniczna sprężonego gazu, liczona jako
+odwracalna praca izotermiczna `w_T = (h₂−h₁) − T·(s₂−s₁)` (zmiana funkcji
+Gibbsa przy T=const, całkowana po Δmᵢ). Dla gazu ziemnego jest o 2–3 rzędy
+wielkości mniejsza od chemicznej — dlatego linepack to magazyn paliwa, a nie
+ciśnienia. Przy powietrzu (brak Hi) energia ciśnienia jest jedyną
+magazynowaną wielkością → **tryb CAES**.
+
+**Analiza typów (CAES):** ta sama praca całkowana dla trzech modeli —
+**izotermicznego** (odwracalny, T=const; round-trip 100%, odzysk = energia
+potencjalna, granica II zasady), **izentropowego** (adiabatyczny, η=1; mimo
+idealnych maszyn round-trip < 100%, bo w rurze zakopanej ciepło sprężania
+ucieka do gruntu — magazyn diabatyczny) oraz **politropowego** (maszyny
+rzeczywiste z η). Wartości podawane na wale (bez napędu mech.-el.).
 
 **Round-trip (M2):** praca cyklu **całkowana po stanie bufora** w 8 krokach
 ciśnienia — kolejne porcje Δmᵢ sprężane od p_min do bieżącego (rosnącego)

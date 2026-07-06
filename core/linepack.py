@@ -7,11 +7,17 @@ Metodyka:
       odcinka równe zadanemu (uproszczenie: bufor liczony między poziomami
       ciśnień średnich p_min, p_max),
     * pojemność robocza (bufor): Δm = m(p_max) − m(p_min),
-      energia: E = Δm · Hi [MWh] (wartość opałowa, M1),
+      energia CHEMICZNA: E = Δm · Hi [MWh] (wartość opałowa, M1),
+    * energia CIŚNIENIA (eksergia): maksymalna odzyskiwalna praca mechaniczna
+      sprężonego gazu = odwracalna praca izotermiczna Δm · w_T (T = const);
+      dla gazu palnego o 2–3 rzędy mniejsza od chemicznej, dla powietrza
+      (brak Hi) — jedyna magazynowana wielkość (tryb CAES),
     * dynamika: czas pokrycia poboru P [MW]: t = E/P,
     * round-trip ze sprężaniem (M2): energia elektryczna napełnienia
       bufora = Δm · w(p_min→p_max)/η_mech; wskaźnik
-      kWh_el / MWh energii chemicznej bufora (koszt energetyczny cyklu).
+      kWh_el / MWh energii chemicznej bufora (koszt energetyczny cyklu),
+    * analiza typów cyklu (``cycle_analysis``): porównanie sprężania/
+      rozprężania izotermicznego / izentropowego / politropowego.
 """
 
 from __future__ import annotations
@@ -21,7 +27,7 @@ from dataclasses import dataclass
 
 from core.calorific import calorific_values
 from core.composition import GasComposition
-from core.compression import compress
+from core.compression import compress, isothermal_work_j_per_kg
 from core.expanders import expand
 from core.gas_properties import compute_properties
 from core.units import j_to_kwh
@@ -42,6 +48,7 @@ class LinepackResult:
     mass_at_pmax_kg: float
     energy_total_at_pmax_mwh: float  # cała zawartość przy p_max (Hi; 0 dla powietrza)
     buffer_energy_mwh: float  # robocza (p_max − p_min), energia chemiczna (Hi)
+    pressure_exergy_mwh: float  # energia CIŚNIENIA bufora (eksergia izotermiczna, T=const)
     compression_kwh_el: float  # energia napełnienia bufora (M2)
     is_combustible: bool
     caes_recovered_mwh: float  # CAES: energia el. odzyskana z rozprężania bufora (M4)
@@ -133,6 +140,7 @@ def linepack(
     ]
     compression_kwh = 0.0
     recovered_kwh = 0.0
+    exergy_kwh = 0.0  # energia ciśnienia = odwracalna praca izotermiczna (eksergia)
     for i in range(n_steps):
         dm = masses[i + 1] - masses[i]
         p_mid = 0.5 * (pressures[i] + pressures[i + 1])
@@ -149,6 +157,11 @@ def linepack(
             composition, p_mid, temperature_k, pressure_min_pa, eta=expander_eta
         ).work_j_per_kg
         recovered_kwh += dm * j_to_kwh(work_out)
+        # eksergia ciśnienia porcji Δm: |w_T(p_min→p_mid)| = maksymalna odwracalna
+        # praca odzysku izotermicznego p_mid→p_min (T = const, granica II zasady).
+        exergy_kwh += dm * j_to_kwh(
+            isothermal_work_j_per_kg(composition, pressure_min_pa, temperature_k, p_mid)
+        )
     compression_kwh /= mech_el_efficiency
     recovered_kwh *= mech_el_efficiency
     caes_recovered_mwh = recovered_kwh / 1e3
@@ -166,8 +179,129 @@ def linepack(
         mass_at_pmax_kg=m_max,
         energy_total_at_pmax_mwh=total_mwh,
         buffer_energy_mwh=buffer_mwh,
+        pressure_exergy_mwh=exergy_kwh / 1e3,
         compression_kwh_el=compression_kwh,
         is_combustible=combustible,
         caes_recovered_mwh=caes_recovered_mwh,
         caes_round_trip_efficiency=round_trip,
     )
+
+
+@dataclass(frozen=True)
+class CycleModel:
+    """Wynik jednego modelu termodynamicznego cyklu magazynowania (CAES)."""
+
+    key: str  # "izotermiczne" | "izentropowe" | "politropowe"
+    name_pl: str
+    fill_mwh: float  # praca (wewnętrzna, na wale) napełnienia bufora
+    recovered_mwh: float  # praca odzyskana przy opróżnianiu
+    round_trip: float  # odzysk / napełnienie [-]
+    note: str
+
+
+def cycle_analysis(
+    composition: GasComposition,
+    diameter_m: float,
+    length_m: float,
+    pressure_min_pa: float,
+    pressure_max_pa: float,
+    temperature_k: float = 283.15,
+    compressor_eta: float = 0.82,
+    expander_eta: float = 0.80,
+    n_steps: int = 8,
+) -> list[CycleModel]:
+    """Porównanie modeli sprężania/rozprężania bufora (analiza typów cyklu).
+
+    Praca cyklu całkowana po stanie bufora (N kroków ciśnienia). Trzy modele
+    (wartości na wale — bez sprawności mechaniczno-elektrycznej napędu):
+
+    * **izotermiczne (idealne, odwracalne):** granica II zasady — sprężanie
+      i rozprężanie przy T = const (doskonała wymiana ciepła z gruntem);
+      round-trip = 100%. Napełnienie = odzysk = **energia ciśnienia** (eksergia),
+    * **izentropowe (adiabatyczne, η = 1):** brak wymiany ciepła w maszynie;
+      w rurze zakopanej gaz stygnie do temperatury gruntu MIĘDZY cyklami
+      (magazyn diabatyczny) → odzysk < napełnienie, round-trip < 100%
+      mimo idealnych maszyn (utrata ciepła sprężania),
+    * **politropowe (rzeczywiste):** maszyny ze sprawnościami η
+      (sprężarka politropowa, ekspander izentropowy z η).
+
+    Zwraca listę trzech ``CycleModel`` (na wale). Sprawność napędu
+    mechaniczno-elektrycznego mnoży dodatkowo round-trip w praktyce.
+    """
+    if diameter_m <= 0 or length_m <= 0:
+        raise ValueError("Geometria odcinka musi być dodatnia.")
+    if pressure_max_pa <= pressure_min_pa:
+        raise ValueError("p_max musi być większe od p_min.")
+
+    volume = math.pi * diameter_m**2 / 4.0 * length_m
+    dp = (pressure_max_pa - pressure_min_pa) / n_steps
+    pressures = [pressure_min_pa + i * dp for i in range(n_steps + 1)]
+    masses = [
+        compute_properties(composition, p, temperature_k).density_kg_per_m3 * volume
+        for p in pressures
+    ]
+
+    iso_fill = iso_rec = 0.0
+    isen_fill = isen_rec = 0.0
+    poly_fill = poly_rec = 0.0
+    for i in range(n_steps):
+        dm = masses[i + 1] - masses[i]
+        p_mid = 0.5 * (pressures[i] + pressures[i + 1])
+        w_iso = j_to_kwh(
+            isothermal_work_j_per_kg(composition, pressure_min_pa, temperature_k, p_mid)
+        )
+        iso_fill += dm * w_iso
+        iso_rec += dm * w_iso  # odwracalne: odzysk = nakład
+        isen_fill += (
+            dm
+            * compress(
+                composition, pressure_min_pa, temperature_k, p_mid, eta=1.0, model="izentropowy"
+            ).work_kwh_per_kg
+        )
+        isen_rec += dm * j_to_kwh(
+            expand(composition, p_mid, temperature_k, pressure_min_pa, eta=1.0).work_j_per_kg
+        )
+        poly_fill += (
+            dm
+            * compress(
+                composition,
+                pressure_min_pa,
+                temperature_k,
+                p_mid,
+                eta=compressor_eta,
+                model="politropowy",
+            ).work_kwh_per_kg
+        )
+        poly_rec += dm * j_to_kwh(
+            expand(
+                composition, p_mid, temperature_k, pressure_min_pa, eta=expander_eta
+            ).work_j_per_kg
+        )
+
+    def _model(key, name, fill_kwh, rec_kwh, note):
+        rt = rec_kwh / fill_kwh if fill_kwh > 0 else 0.0
+        return CycleModel(key, name, fill_kwh / 1e3, rec_kwh / 1e3, rt, note)
+
+    return [
+        _model(
+            "izotermiczne",
+            "izotermiczne (idealne, odwracalne)",
+            iso_fill,
+            iso_rec,
+            "granica II zasady; napełnienie = odzysk = energia ciśnienia (eksergia)",
+        ),
+        _model(
+            "izentropowe",
+            "izentropowe (adiabatyczne, η = 1)",
+            isen_fill,
+            isen_rec,
+            "maszyny idealne, magazyn diabatyczny — ciepło sprężania oddane do gruntu",
+        ),
+        _model(
+            "politropowe",
+            f"politropowe (η sprężania {compressor_eta:.2f} / rozprężania {expander_eta:.2f})",
+            poly_fill,
+            poly_rec,
+            "maszyny rzeczywiste (bez napędu mech.-el.)",
+        ),
+    ]
