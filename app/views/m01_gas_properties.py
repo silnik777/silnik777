@@ -20,6 +20,7 @@ from core.blending import (
 from core.calorific import calorific_values, energy_density_at_state, quality_flags
 from core.composition import GasComposition, components_registry
 from core.config import load_data_file
+from core.flammability import flammability_limits
 from core.gas_properties import compute_properties
 from core.methane_number import methane_number_assessment
 from core.units import (
@@ -346,10 +347,11 @@ def render() -> None:
                 st.error("🧪 Propanowanie: " + enrichment.note)
 
     st.divider()
-    tab_q, tab_props, tab_h2 = st.tabs(
+    tab_q, tab_props, tab_gen, tab_h2 = st.tabs(
         [
             "✅ Jakość i kaloryczność",
             "🔬 Właściwości termodynamiczne (p, T)",
+            "📈 Tabele i wykresy (p, T)",
             "🔀 Wpływ domieszki H₂",
         ]
     )
@@ -403,6 +405,22 @@ def render() -> None:
                 f"{props.viscosity_pa_s * 1e6:.2f} µPa·s",
                 help=f"Metoda: {props.viscosity_method}",
             )
+        r7 = st.columns(4)
+        if props.thermal_conductivity_w_per_m_k is not None:
+            r7[0].metric(
+                "Przewodność cieplna λ",
+                f"{props.thermal_conductivity_w_per_m_k * 1e3:.2f} mW/(m·K)",
+                help="Model CoolProp (mieszaniny: ECS).",
+            )
+
+        flam = flammability_limits(composition)
+        if flam is not None:
+            st.markdown("##### Granice wybuchowości (część palna, % obj. w powietrzu)")
+            fcols = st.columns(4)
+            fcols[0].metric("Dolna granica LEL", f"{flam.lel_vol_pct:.2f} %obj")
+            fcols[1].metric("Górna granica UEL", f"{flam.uel_vol_pct:.1f} %obj")
+            fcols[2].metric("Zakres palności", f"{flam.uel_vol_pct - flam.lel_vol_pct:.1f} pkt%")
+            st.caption(f"Reguła Le Chateliera · {flam.source} · {flam.note}")
 
         energy = energy_density_at_state(cal, props)
         st.markdown("##### Gęstość energii przy stanie roboczym")
@@ -410,6 +428,78 @@ def render() -> None:
         r6[0].metric("Hi przy (p,T)", f"{energy['hi_mj_per_m3_at_state']:.2f} MJ/m³")
         r6[1].metric("Hs przy (p,T)", f"{energy['hs_mj_per_m3_at_state']:.2f} MJ/m³")
         r6[2].metric("Hi (masowo)", f"{cal.hi_kwh_per_kg:.3f} kWh/kg")
+
+    with tab_gen:
+        st.markdown("##### Generator tabel i wykresów właściwości w funkcji p lub T")
+        gc1, gc2, gc3 = st.columns(3)
+        sweep_var = gc1.radio("Zmienna", ["ciśnienie p", "temperatura T"], horizontal=False)
+        prop_options = {
+            "Ściśliwość Z": lambda pr: pr.z_factor,
+            "Gęstość ρ [kg/m³]": lambda pr: pr.density_kg_per_m3,
+            "cp [kJ/(kg·K)]": lambda pr: pr.cp_j_per_kg_k / 1e3,
+            "Wykładnik izentropy κ": lambda pr: pr.isentropic_exponent,
+            "Współczynnik J-T [K/bar]": lambda pr: pr.joule_thomson_k_per_bar,
+            "Prędkość dźwięku [m/s]": lambda pr: pr.speed_of_sound_m_per_s,
+            "Lepkość μ [µPa·s]": lambda pr: (
+                pr.viscosity_pa_s * 1e6 if pr.viscosity_pa_s else None
+            ),
+            "Przewodność λ [mW/(m·K)]": lambda pr: (
+                pr.thermal_conductivity_w_per_m_k * 1e3
+                if pr.thermal_conductivity_w_per_m_k
+                else None
+            ),
+        }
+        prop_name = gc2.selectbox("Właściwość", list(prop_options))
+        n_pts = int(gc3.number_input("Liczba punktów", 5, 60, 25, 5))
+
+        if sweep_var.startswith("ciśnienie"):
+            rr = st.columns(2)
+            p_lo = rr[0].number_input("p od [bar(a)]", 0.5, 350.0, 1.0, 1.0)
+            p_hi = rr[1].number_input("p do [bar(a)]", 1.0, 350.0, 80.0, 1.0)
+            xs = [p_lo + (p_hi - p_lo) * i / (n_pts - 1) for i in range(n_pts)]
+            xlabel = "p [bar(a)]"
+            try:
+                pts = [
+                    compute_properties(composition, bar_to_pa(x), celsius_to_kelvin(temperature_c))
+                    for x in xs
+                ]
+            except ValueError as exc:
+                st.error(str(exc))
+                st.stop()
+            subtitle = f"przy T = {temperature_c:g} °C"
+        else:
+            rr = st.columns(2)
+            t_lo = rr[0].number_input("T od [°C]", -50.0, 200.0, -20.0, 5.0)
+            t_hi = rr[1].number_input("T do [°C]", -40.0, 300.0, 60.0, 5.0)
+            xs = [t_lo + (t_hi - t_lo) * i / (n_pts - 1) for i in range(n_pts)]
+            xlabel = "T [°C]"
+            try:
+                pts = [
+                    compute_properties(composition, bar_to_pa(pressure_bar), celsius_to_kelvin(x))
+                    for x in xs
+                ]
+            except ValueError as exc:
+                st.error(str(exc))
+                st.stop()
+            subtitle = f"przy p = {pressure_bar:g} bar(a)"
+
+        ys = [prop_options[prop_name](pr) for pr in pts]
+        gen_df = pd.DataFrame({xlabel: xs, prop_name: ys})
+        gfig = go.Figure(go.Scatter(x=xs, y=ys, mode="lines+markers", name=prop_name))
+        gfig.update_layout(
+            xaxis_title=xlabel,
+            yaxis_title=prop_name,
+            title=f"{prop_name} — {subtitle}",
+            height=420,
+        )
+        st.plotly_chart(gfig, config={"displaylogo": False})
+        st.dataframe(gen_df.round(4), hide_index=True, width="stretch")
+        st.download_button(
+            "⬇️ CSV tabeli",
+            gen_df.to_csv(index=False).encode("utf-8"),
+            file_name="wlasciwosci_p_T.csv",
+            mime="text/csv",
+        )
 
     with tab_h2:
         st.markdown("##### Ws, Hs, Hi w funkcji udziału H₂ (0–100 % mol)")
@@ -518,6 +608,16 @@ dla gazu doskonałego κ = cp/cv.
 **Lepkość:** korelacje referencyjne CoolProp (mieszaniny: model ECS);
 w razie niedostępności — reguła Wilke'a (1950), przybliżenie niskociśnieniowe
 (oznaczane przy wyniku).
+
+**Przewodność cieplna λ:** model CoolProp (mieszaniny: ECS); [W/(m·K)].
+
+**Granice wybuchowości (LEL/UEL):** reguła Le Chateliera na składnikach
+palnych (dane NFPA 497/ISO 10156, `data/flammability.yaml`):
+`LEL = 1/Σ(yᵢ/LELᵢ)` (analogicznie UEL), yᵢ w bazie palnej. Ujęcie
+przesiewowe — inerty w rzeczywistości zawężają zakres palności.
+
+**Generator tabel/wykresów p,T:** przemiatanie wybranej właściwości po
+ciśnieniu (przy stałym T) lub temperaturze (przy stałym p), z eksportem CSV.
 
 **Walidacja:** testy automatyczne porównują wyniki z wartościami referencyjnymi
 (ISO 6976, NIST WebBook, entalpie tworzenia ATcT/CODATA, literatura) —

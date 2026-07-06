@@ -51,6 +51,7 @@ class GasProperties:
     speed_of_sound_m_per_s: float
     viscosity_pa_s: float | None
     viscosity_method: str  # "CoolProp" | "Wilke (niskociśnieniowa)" | "niedostępna"
+    thermal_conductivity_w_per_m_k: float | None  # przewodność cieplna λ [W/(m·K)]
     warnings: list[str] = field(default_factory=list)
 
     @property
@@ -325,6 +326,14 @@ def compute_properties(
             method = "niedostępna"
             warnings.append("Lepkość niedostępna dla tej mieszaniny.")
 
+    conductivity: float | None
+    try:
+        conductivity = state.conductivity()
+        if not math.isfinite(conductivity):
+            raise ValueError("λ NaN")
+    except Exception:
+        conductivity = None  # model ECS niedostępny dla części mieszanin
+
     return GasProperties(
         pressure_pa=pressure_pa,
         temperature_k=temperature_k,
@@ -340,5 +349,6 @@ def compute_properties(
         speed_of_sound_m_per_s=speed,
         viscosity_pa_s=viscosity,
         viscosity_method=method,
+        thermal_conductivity_w_per_m_k=conductivity,
         warnings=warnings,
     )

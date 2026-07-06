@@ -1,0 +1,21 @@
+meta:
+  description: >
+    Granice wybuchowości składników palnych w powietrzu (LEL/UEL, % obj.)
+    do wyznaczania granic mieszaniny regułą Le Chateliera (M1, moduł strat
+    gazu). Wartości w temperaturze pokojowej i ciśnieniu atmosferycznym;
+    rosną/maleją z temperaturą (screening — do weryfikacji dla warunków
+    procesowych). Składniki niepalne (N2, CO2, O2, He, Ar) pominięte.
+  updated: "2026-07-06"
+  source: >
+    NFPA 497 / ISO 10156 / CRC Handbook; wartości orientacyjne (screening).
+
+limits_vol_pct_in_air:
+  CH4: {lel: 5.0, uel: 15.0}
+  C2H6: {lel: 3.0, uel: 12.4}
+  C3H8: {lel: 2.1, uel: 9.5}
+  nC4H10: {lel: 1.8, uel: 8.4}
+  iC4H10: {lel: 1.8, uel: 8.4}
+  nC5H12: {lel: 1.4, uel: 7.8}
+  iC5H12: {lel: 1.4, uel: 7.6}
+  nC6H14: {lel: 1.2, uel: 7.4}
+  H2: {lel: 4.0, uel: 75.0}
