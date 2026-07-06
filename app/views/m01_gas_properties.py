@@ -108,6 +108,64 @@ def _show_flags(flags) -> None:
         st.caption(f"Źródło: {f.source}" + (f" · {f.note}" if f.note else ""))
 
 
+def _verdict_banner(composition, flags, mn, cal) -> None:
+    """Górny werdykt: jednoznaczny status zgodności + 4 kluczowe wskaźniki.
+
+    Zamiast 24 kafelków naraz — najpierw ODPOWIEDŹ (czy gaz spełnia wymogi
+    grupy E), potem szczegóły w zakładkach niżej.
+    """
+    if not composition.is_combustible:
+        st.info(
+            "ℹ️ Gaz niepalny (np. powietrze) — ocena jakościowa gazu wysokometanowego "
+            "grupy E nie dotyczy. Właściwości termodynamiczne w zakładce poniżej."
+        )
+        return
+
+    failed = [f.name_pl for f in flags if not f.ok]
+    if mn is not None and not mn.ok:
+        failed.append("liczba metanowa")
+
+    if not failed:
+        st.success(
+            "### ✅ Gaz spełnia wymogi gazu wysokometanowego (grupa E)\n"
+            "Wszystkie kryteria jakościowe w normie (Wobbe, próg %H₂, liczba metanowa)."
+        )
+    else:
+        st.error(
+            "### ❌ Gaz NIE spełnia wszystkich wymogów grupy E\n"
+            "Poza normą: **" + ", ".join(failed) + "** — szczegóły w zakładce „Jakość i "
+            "kaloryczność”."
+        )
+
+    wobbe_flag = next((f for f in flags if "Wobbe" in f.name_pl), None)
+    k = st.columns(4)
+    if wobbe_flag is not None:
+        k[0].metric(
+            "Wobbe (Ws)",
+            f"{wobbe_flag.value:.1f} {wobbe_flag.unit}",
+            delta="w normie" if wobbe_flag.ok else "poza normą",
+            delta_color="normal" if wobbe_flag.ok else "inverse",
+            help=f"Widełki grupy E: {wobbe_flag.limit_min:g}–{wobbe_flag.limit_max:g} "
+            f"{wobbe_flag.unit}.",
+        )
+    h2_pct = composition.h2_mole_percent
+    k[1].metric(
+        "Udział H₂",
+        f"{h2_pct:.1f} % mol",
+        help="Sam wskaźnik Wobbego nie wykrywa H₂ (Ws czystego H₂ ≈ 48 MJ/m³ mieści "
+        "się w widełkach E) — dlatego kontrolujemy udział %H₂ osobno.",
+    )
+    if mn is not None:
+        k[2].metric(
+            "Liczba metanowa",
+            f"{mn.value:.0f}",
+            delta="OK" if mn.ok else f"< {mn.min_limit:g}",
+            delta_color="normal" if mn.ok else "inverse",
+            help="Odporność na spalanie stukowe w silnikach gazowych; spada z H₂.",
+        )
+    k[3].metric("Wartość opałowa Hi", f"{cal.hi_mj_per_m3:.2f} MJ/m³")
+
+
 def render() -> None:
     st.title("M1 · Właściwości gazów i mieszanin")
     st.caption(
@@ -169,23 +227,35 @@ def render() -> None:
         st.stop()
         return
 
+    flags = quality_flags(composition, cal, h2_limit_mol_pct=float(h2_limit))
+    mn = methane_number_assessment(composition) if composition.is_combustible else None
+
     with col_out:
-        st.subheader("Zgodność jakościowa")
-        _show_flags(quality_flags(composition, cal, h2_limit_mol_pct=float(h2_limit)))
-
-        if composition.is_combustible:
-            mn = methane_number_assessment(composition)
-            ok_txt = "✅ " if mn.ok else "❌ "
-            text = (
-                f"**Liczba metanowa (MN)**: {mn.value:.1f} " f"(limit silnikowy ≥ {mn.min_limit:g})"
-            )
-            (st.success if mn.ok else st.error)(ok_txt + text)
-            st.caption(f"Źródło: {mn.source} · {mn.note}")
-
+        _verdict_banner(composition, flags, mn, cal)
         for w in props.warnings:
             st.warning(w)
 
-        st.subheader("Wartości kaloryczne i Wobbe " f"({reference.name})")
+    st.divider()
+    tab_q, tab_props, tab_h2 = st.tabs(
+        [
+            "✅ Jakość i kaloryczność",
+            "🔬 Właściwości termodynamiczne (p, T)",
+            "🔀 Wpływ domieszki H₂",
+        ]
+    )
+
+    with tab_q:
+        st.markdown("##### Zgodność jakościowa (norma grupy E)")
+        _show_flags(flags)
+        if mn is not None:
+            ok_txt = "✅ " if mn.ok else "❌ "
+            (st.success if mn.ok else st.error)(
+                ok_txt + f"**Liczba metanowa (MN)**: {mn.value:.1f} "
+                f"(limit silnikowy ≥ {mn.min_limit:g})"
+            )
+            st.caption(f"Źródło: {mn.source} · {mn.note}")
+
+        st.markdown(f"##### Wartości kaloryczne i Wobbe ({reference.name})")
         r1 = st.columns(4)
         r1[0].metric("Ciepło spalania Hs", f"{cal.hs_mj_per_m3:.3f} MJ/m³")
         r1[1].metric("Wartość opałowa Hi", f"{cal.hi_mj_per_m3:.3f} MJ/m³")
@@ -196,17 +266,22 @@ def render() -> None:
         r2[1].metric("Hi", f"{cal.hi_kwh_per_m3:.4f} kWh/m³")
         r2[2].metric("Hi (masowo)", f"{cal.hi_mj_per_kg:.2f} MJ/kg")
         r2[3].metric("Hi (masowo)", f"{cal.hi_kwh_per_kg:.3f} kWh/kg")
+        st.caption(
+            f"Podstawa objętości: {reference.description}; spalanie 25 °C (ISO 6976). "
+            "Wartości certyfikacyjne wg akredytowanej analizy."
+        )
 
-        st.subheader(f"Właściwości przy p = {pressure_bar:g} bar(a), T = {temperature_c:g} °C")
+    with tab_props:
+        st.markdown(f"##### Stan: p = {pressure_bar:g} bar(a), T = {temperature_c:g} °C")
         r3 = st.columns(4)
-        r3[0].metric("Z", f"{props.z_factor:.5f}")
+        r3[0].metric("Ściśliwość Z", f"{props.z_factor:.5f}")
         r3[1].metric("Gęstość ρ", f"{props.density_kg_per_m3:.3f} kg/m³")
         r3[2].metric("cp", f"{props.cp_j_per_kg_k / 1e3:.3f} kJ/(kg·K)")
         r3[3].metric("cv", f"{props.cv_j_per_kg_k / 1e3:.3f} kJ/(kg·K)")
         r4 = st.columns(4)
         r4[0].metric("γ = cp/cv", f"{props.cp_over_cv:.4f}")
         r4[1].metric("Wykładnik izentropy κ", f"{props.isentropic_exponent:.4f}")
-        r4[2].metric("μ J-T", f"{props.joule_thomson_k_per_bar:.4f} K/bar")
+        r4[2].metric("Współczynnik J-T", f"{props.joule_thomson_k_per_bar:.4f} K/bar")
         r4[3].metric("Prędkość dźwięku", f"{props.speed_of_sound_m_per_s:.1f} m/s")
         r5 = st.columns(4)
         r5[0].metric("Masa molowa", f"{props.molar_mass_kg_per_kmol:.3f} kg/kmol")
@@ -220,40 +295,48 @@ def render() -> None:
             )
 
         energy = energy_density_at_state(cal, props)
-        st.subheader("Gęstość energii")
+        st.markdown("##### Gęstość energii przy stanie roboczym")
         r6 = st.columns(3)
         r6[0].metric("Hi przy (p,T)", f"{energy['hi_mj_per_m3_at_state']:.2f} MJ/m³")
         r6[1].metric("Hs przy (p,T)", f"{energy['hs_mj_per_m3_at_state']:.2f} MJ/m³")
         r6[2].metric("Hi (masowo)", f"{cal.hi_kwh_per_kg:.3f} kWh/kg")
 
-    st.divider()
-    st.subheader("Wpływ domieszki H2 na parametry jakościowe")
-    curve = _wobbe_vs_h2_curve(base.fractions, ref_key)
-    limits = load_data_file("quality_limits.yaml")["wobbe_index_group_E"]
-    fig = go.Figure()
-    fig.add_hrect(
-        y0=limits["min_mj_per_m3"],
-        y1=limits["max_mj_per_m3"],
-        fillcolor="green",
-        opacity=0.08,
-        annotation_text="widełki Wobbego gr. E",
-        annotation_position="top left",
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=curve["H2 [% mol]"], y=curve["Ws [MJ/m³]"], name="Ws (Wobbe górna)", mode="lines"
+    with tab_h2:
+        st.markdown("##### Ws, Hs, Hi w funkcji udziału H₂ (0–100 % mol)")
+        curve = _wobbe_vs_h2_curve(base.fractions, ref_key)
+        limits = load_data_file("quality_limits.yaml")["wobbe_index_group_E"]
+        fig = go.Figure()
+        fig.add_hrect(
+            y0=limits["min_mj_per_m3"],
+            y1=limits["max_mj_per_m3"],
+            fillcolor="green",
+            opacity=0.08,
+            annotation_text="widełki Wobbego gr. E",
+            annotation_position="top left",
         )
-    )
-    fig.add_trace(go.Scatter(x=curve["H2 [% mol]"], y=curve["Hs [MJ/m³]"], name="Hs", mode="lines"))
-    fig.add_trace(go.Scatter(x=curve["H2 [% mol]"], y=curve["Hi [MJ/m³]"], name="Hi", mode="lines"))
-    fig.add_vline(x=h2_pct, line_dash="dot", annotation_text=f"{h2_pct:g}% H2")
-    fig.update_layout(
-        xaxis_title="Udział H2 [% mol]",
-        yaxis_title=f"MJ/m³ ({reference.name})",
-        legend=dict(orientation="h"),
-        height=450,
-    )
-    st.plotly_chart(fig, config={"displaylogo": False})
+        fig.add_trace(
+            go.Scatter(
+                x=curve["H2 [% mol]"], y=curve["Ws [MJ/m³]"], name="Ws (Wobbe górna)", mode="lines"
+            )
+        )
+        fig.add_trace(
+            go.Scatter(x=curve["H2 [% mol]"], y=curve["Hs [MJ/m³]"], name="Hs", mode="lines")
+        )
+        fig.add_trace(
+            go.Scatter(x=curve["H2 [% mol]"], y=curve["Hi [MJ/m³]"], name="Hi", mode="lines")
+        )
+        fig.add_vline(x=h2_pct, line_dash="dot", annotation_text=f"{h2_pct:g}% H2")
+        fig.update_layout(
+            xaxis_title="Udział H2 [% mol]",
+            yaxis_title=f"MJ/m³ ({reference.name})",
+            legend=dict(orientation="h"),
+            height=450,
+        )
+        st.plotly_chart(fig, config={"displaylogo": False})
+        st.caption(
+            "Kropkowana pionowa linia = bieżąca domieszka H₂. Ws pozostaje w widełkach E "
+            "nawet dla dużych udziałów H₂ — dlatego decyduje kontrola %H₂ i liczby metanowej."
+        )
 
     with st.expander("📖 Założenia i wzory"):
         st.markdown("""
@@ -288,4 +371,14 @@ w razie niedostępności — reguła Wilke'a (1950), przybliżenie niskociśnien
 (ISO 6976, NIST WebBook, entalpie tworzenia ATcT/CODATA, literatura) —
 tolerancje: Z, ρ, cp ≤ 0,5%; wartości kaloryczne ≤ 0,1%. Szczegóły:
 `tests/reference_data.py`.
+
+**Dlaczego te biblioteki (dobór świadomy):** GERG-2008 jest międzynarodowym
+wzorcem równania stanu dla gazu ziemnego i jego mieszanin z wodorem
+(ISO 20765-2, następca AGA8) — stosowanym w rozliczeniach handlowych. ISO 6976
+to norma kaloryczności/Wobbego w gazownictwie. To najwyższy dostępny standard
+dokładności dla tego zakresu p,T; równania sześcienne (Peng-Robinson, SRK)
+byłyby szybsze, ale mniej dokładne dla ρ/Z (krok wstecz). Jedyna realna
+alternatywa to komercyjny **NIST REFPROP** (ten sam model GERG-2008 dla gazu
+ziemnego, nowsze parametry binarne H₂) — marginalny zysk dokładności kosztem
+licencji; nieuzasadniony dla narzędzia przesiewowego B+R.
             """)

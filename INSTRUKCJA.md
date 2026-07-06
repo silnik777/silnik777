@@ -57,6 +57,13 @@ odpowiadać; kartę przeglądarki można zamknąć w dowolnym momencie.
 
 ### Funkcje dodatkowe
 
+- **M1 — układ strony (werdykt + zakładki)**: na górze pokazywany jest
+  **werdykt** — czy gaz spełnia wymogi gazu wysokometanowego grupy E — z
+  czterema kluczowymi wskaźnikami (Wobbe, %H₂, liczba metanowa, wartość
+  opałowa). Szczegóły są w trzech zakładkach, żeby nie zasypywać wszystkim
+  naraz: **„Jakość i kaloryczność”** (flagi normy + wartości kaloryczne),
+  **„Właściwości termodynamiczne (p, T)”** (Z, gęstość, cp/cv, prędkość
+  dźwięku, lepkość itd.) oraz **„Wpływ domieszki H₂”** (wykres Ws/Hs/Hi).
 - **M1 — liczba metanowa**: obok liczby Wobbego pokazywana jest liczba
   metanowa (odporność na spalanie stukowe w silnikach gazowych) z flagą
   limitu silnikowego. Spada z domieszką H₂; na osi CH₄/H₂ wynik jest ścisły.
