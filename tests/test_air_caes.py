@@ -79,3 +79,59 @@ class TestCAES:
         assert res.buffer_energy_mwh > 0.0
         # czas pokrycia liczony z energii chemicznej
         assert res.buffer_hours_at_load(10.0) == pytest.approx(res.buffer_energy_mwh / 10.0)
+
+
+class TestLinepackIntegration:
+    """Fix 3.4: praca cyklu bufora całkowana po N krokach ciśnienia."""
+
+    ARGS = dict(
+        diameter_m=0.5,
+        length_m=50_000.0,
+        pressure_min_pa=bar_to_pa(40),
+        pressure_max_pa=bar_to_pa(70),
+        temperature_k=283.15,
+    )
+
+    def _single_shot_fill_kwh(self, comp):
+        """Pojedynczy skok: cała Δm sprężana p_min→p_max (zawyżenie)."""
+        from core.compression import compress
+
+        p_min, p_max = self.ARGS["pressure_min_pa"], self.ARGS["pressure_max_pa"]
+        rho = lambda p: compute_properties(comp, p, self.ARGS["temperature_k"]).density_kg_per_m3
+        import math
+
+        vol = math.pi * self.ARGS["diameter_m"] ** 2 / 4.0 * self.ARGS["length_m"]
+        dm = (rho(p_max) - rho(p_min)) * vol
+        w = compress(
+            comp, p_min, self.ARGS["temperature_k"], p_max, eta=0.82, model="politropowy"
+        ).work_kwh_per_kg
+        return dm * w / 0.95  # napęd mech-el jak w linepack()
+
+    def test_integrated_fill_below_single_shot(self):
+        """Całkowanie po ciśnieniu daje mniej energii niż skok całej masy."""
+        res = linepack(AIR, **self.ARGS)
+        single = self._single_shot_fill_kwh(AIR)
+        assert res.compression_kwh_el < single
+        # ale nie drastycznie mniej — ten sam rząd wielkości
+        assert res.compression_kwh_el > 0.5 * single
+
+    def test_recovery_below_single_shot_expand(self):
+        """Odzysk CAES < rozprężanie całej Δm od p_max (zawyżenie)."""
+        import math
+
+        from core.expanders import expand
+        from core.units import j_to_kwh
+
+        p_min, p_max = self.ARGS["pressure_min_pa"], self.ARGS["pressure_max_pa"]
+        rho = lambda p: compute_properties(AIR, p, self.ARGS["temperature_k"]).density_kg_per_m3
+        vol = math.pi * self.ARGS["diameter_m"] ** 2 / 4.0 * self.ARGS["length_m"]
+        dm = (rho(p_max) - rho(p_min)) * vol
+        w_out = expand(AIR, p_max, self.ARGS["temperature_k"], p_min, eta=0.80).work_j_per_kg
+        single_recovered_mwh = dm * j_to_kwh(w_out) * 0.95 / 1e3
+        res = linepack(AIR, **self.ARGS)
+        assert res.caes_recovered_mwh < single_recovered_mwh
+        assert res.caes_recovered_mwh > 0.5 * single_recovered_mwh
+
+    def test_round_trip_still_plausible_after_integration(self):
+        res = linepack(AIR, **self.ARGS)
+        assert 0.2 < res.caes_round_trip_efficiency < 1.0

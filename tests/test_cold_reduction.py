@@ -125,3 +125,148 @@ class TestEconomics:
         eco = variant_economics(variants[2], heat_sources()["kociol_gazowy"])
         assert eco.preheat_cost_pln_per_year == 0.0
         assert eco.net_cost_pln_per_year == 0.0
+
+
+class TestScenarioPrices:
+    """Fix 3.1: M13 liczy na cenach scenariusza M5 (jedno źródło prawdy)."""
+
+    def test_scenario_electricity_revenue_matches_m5_price(self):
+        from core.prices import builtin_scenarios
+
+        sc = builtin_scenarios()["bazowy"]
+        variants = station_balance(E_GAS, P1, T_IN, P2, mass_flow_kg_per_s=2.0)
+        exp = variants[1]
+        eco = variant_economics(
+            exp, heat_sources()["kociol_gazowy"], hours_per_year=8000.0, scenario=sc, year=2030
+        )
+        expected = exp.power_recovered_w / 1e6 * 8000.0 * sc.price("energia_elektryczna", 2030)
+        assert eco.electricity_revenue_pln_per_year == pytest.approx(expected)
+
+    def test_scenario_changes_result_vs_working_prices(self):
+        from core.prices import builtin_scenarios
+
+        sc_low = builtin_scenarios()["niski"]
+        sc_high = builtin_scenarios()["wysoki"]
+        variants = station_balance(E_GAS, P1, T_IN, P2, mass_flow_kg_per_s=2.0)
+        jt = variants[0]
+        c_low = variant_economics(
+            jt, heat_sources()["kociol_gazowy"], scenario=sc_low, year=2030
+        ).preheat_cost_pln_per_year
+        c_high = variant_economics(
+            jt, heat_sources()["kociol_gazowy"], scenario=sc_high, year=2030
+        ).preheat_cost_pln_per_year
+        # różne scenariusze cen gazu → różny koszt podgrzewu
+        assert c_low != c_high
+
+    def test_fallback_working_prices_without_scenario(self):
+        """Bez scenariusza — ceny robocze (zachowanie niezmienione)."""
+        variants = station_balance(E_GAS, P1, T_IN, P2, mass_flow_kg_per_s=2.0)
+        eco = variant_economics(variants[0], heat_sources()["kociol_gazowy"])
+        assert eco.preheat_cost_pln_per_year > 0.0
+
+    def test_year_required_with_scenario(self):
+        from core.prices import builtin_scenarios
+
+        variants = station_balance(E_GAS, P1, T_IN, P2, mass_flow_kg_per_s=2.0)
+        with pytest.raises(ValueError, match="rok analizy"):
+            variant_economics(
+                variants[0],
+                heat_sources()["kociol_gazowy"],
+                scenario=builtin_scenarios()["bazowy"],
+            )
+
+
+class TestCompressionHeatSource:
+    """Fix 3.2: źródło ciepła z POLICZONEGO sprężania M2 (nie z danych)."""
+
+    def _comp(self, p_out_bar=55.0, stages=2):
+        from core.compression import compress
+        from core.units import bar_to_pa
+
+        return compress(
+            E_GAS,
+            bar_to_pa(4.0),
+            293.15,
+            bar_to_pa(p_out_bar),
+            eta=0.78,
+            n_stages=stages,
+            model="politropowy",
+        )
+
+    def test_supply_temp_is_min_stage_minus_approach(self):
+        from core.cold_reduction import heat_source_from_compression
+
+        comp = self._comp()
+        src = heat_source_from_compression(comp, mass_flow_kg_per_s=3.0, approach_k=10.0)
+        min_stage_c = min(s.temperature_out_k for s in comp.stages) - 273.15
+        assert src.supply_temp_c == pytest.approx(min_stage_c - 10.0)
+        assert src.energy_carrier == "odpadowe"
+        assert src.key == "m2_sprezarka_policzona"
+
+    def test_available_kw_is_cooling_plus_aftercooler(self):
+        from core.cold_reduction import heat_source_from_compression
+
+        comp = self._comp()
+        m = 3.0
+        src = heat_source_from_compression(comp, mass_flow_kg_per_s=m)
+        expected_w = (
+            comp.cooling_duty_w(m) + comp.aftercooler_heat_j_per_kg(comp.temperature_in_k) * m
+        )
+        assert src.available_kw == pytest.approx(expected_w / 1e3)
+        assert src.available_kw > 0.0
+
+    def test_capacity_flag_fails_when_demand_exceeds_available(self):
+        """Gdy zapotrzebowanie podgrzewu > dostępna moc — flaga ❌."""
+        from core.cold_reduction import HeatSource
+
+        variants = station_balance(E_GAS, P1, T_IN, P2, mass_flow_kg_per_s=2.0)
+        jt = variants[0]
+        duty_kw = jt.preheat_duty_w / 1e3
+        # źródło gorące, ale o mocy 10× mniejszej niż potrzeba
+        tiny = HeatSource(
+            key="m2_sprezarka_policzona",
+            name_pl="mała sprężarka",
+            supply_temp_c=120.0,
+            energy_carrier="odpadowe",
+            efficiency_hi=1.0,
+            cop=None,
+            source="test",
+            available_kw=duty_kw / 10.0,
+        )
+        big = HeatSource(
+            key="m2_sprezarka_policzona",
+            name_pl="duża sprężarka",
+            supply_temp_c=120.0,
+            energy_carrier="odpadowe",
+            efficiency_hi=1.0,
+            cop=None,
+            source="test",
+            available_kw=duty_kw * 10.0,
+        )
+        assert not variant_economics(jt, tiny).heat_source_ok
+        assert variant_economics(jt, big).heat_source_ok
+
+    def test_too_cold_compressor_raises(self):
+        from core.cold_reduction import heat_source_from_compression
+        from core.compression import compress
+        from core.units import bar_to_pa
+
+        # zimne ssanie + niski spręż → tłoczenie ≈ ssanie, brak użytecznego ciepła
+        comp = compress(
+            E_GAS,
+            bar_to_pa(4.0),
+            278.15,
+            bar_to_pa(4.2),
+            eta=0.78,
+            n_stages=1,
+            model="politropowy",
+        )
+        with pytest.raises(ValueError, match="zbyt niskiej temperaturze"):
+            heat_source_from_compression(comp, mass_flow_kg_per_s=3.0)
+
+    def test_zero_mass_flow_raises(self):
+        from core.cold_reduction import heat_source_from_compression
+
+        comp = self._comp()
+        with pytest.raises(ValueError, match="dodatni"):
+            heat_source_from_compression(comp, mass_flow_kg_per_s=0.0)

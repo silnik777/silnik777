@@ -35,7 +35,8 @@ from core.hydrates import HydrateCheck, check_hydrates
 
 @dataclass(frozen=True)
 class HeatSource:
-    """Źródło ciepła podgrzewu gazu (``data/reduction_stations.yaml``)."""
+    """Źródło ciepła podgrzewu gazu (``data/reduction_stations.yaml`` albo
+    zbudowane z policzonego sprężania M2 — ``heat_source_from_compression``)."""
 
     key: str
     name_pl: str
@@ -45,6 +46,7 @@ class HeatSource:
     cop: float | None  # COP (pompa ciepła, grzałki)
     source: str
     note: str | None = None
+    available_kw: float | None = None  # limit mocy cieplnej (None = bez limitu)
 
     def max_gas_temp_k(self, pinch_k: float) -> float:
         """Maksymalna osiągalna temperatura gazu po podgrzewie [K]."""
@@ -386,6 +388,31 @@ class VariantEconomics:
     net_cost_pln_per_year: float
 
 
+#: Nośniki M13 mające ścieżkę cenową w scenariuszach M5.
+_M5_CARRIERS = ("energia_elektryczna", "gaz_ziemny", "biomasa", "wodor", "wegiel")
+
+
+def _resolve_prices(scenario, year: int | None) -> tuple[dict[str, float], str]:
+    """Ceny nośników: ze scenariusza M5 (preferowane) albo robocze (fallback).
+
+    Zwraca (ceny, opis źródła cen). „odpadowe" nie ma ścieżki w M5 —
+    zawsze z cen roboczych (koszt krańcowy).
+    """
+    working = {
+        k: float(v)
+        for k, v in load_data_file("reduction_stations.yaml")["working_prices_pln_per_mwh"].items()
+        if isinstance(v, (int, float))
+    }
+    if scenario is None:
+        return working, "ceny robocze (data/reduction_stations.yaml)"
+    if year is None:
+        raise ValueError("Podaj rok analizy dla scenariusza cenowego M5.")
+    prices = dict(working)
+    for carrier in _M5_CARRIERS:
+        prices[carrier] = scenario.price(carrier, year)
+    return prices, f"scenariusz M5 „{scenario.name_pl}”, rok {year}"
+
+
 def variant_economics(
     variant: VariantResult,
     heat_source: HeatSource,
@@ -393,16 +420,25 @@ def variant_economics(
     electricity_price_pln_per_mwh: float | None = None,
     prices_pln_per_mwh: dict[str, float] | None = None,
     pinch_k: float | None = None,
+    scenario=None,
+    year: int | None = None,
 ) -> VariantEconomics:
-    """Roczne koszty/przychody wariantu przy roboczych cenach energii.
+    """Roczne koszty/przychody wariantu stacji.
 
-    Koszt podgrzewu = moc podgrzewu × czas × cena nośnika / (η lub COP);
+    Ceny: preferencyjnie ze **scenariusza M5** (``scenario`` + ``year`` —
+    jedno źródło prawdy z resztą narzędzia); bez scenariusza — ceny robocze
+    z ``data/reduction_stations.yaml`` (fallback, oznaczony). „odpadowe"
+    zawsze wg cen roboczych (koszt krańcowy, brak ścieżki rynkowej).
+
+    Koszt podgrzewu = moc × czas × cena nośnika / (η lub COP);
     przychód = energia elektryczna z ekspandera × cena energii.
-    Ceny domyślne: ``data/reduction_stations.yaml`` (oznaczone jako robocze).
+    Sprawdzane ograniczenia źródła: temperatura zasilania (pinch) oraz —
+    dla źródeł z limitem (ciepło odpadowe z konkretnej sprężarki M2) —
+    dostępna moc cieplna.
     """
-    data = load_data_file("reduction_stations.yaml")["working_prices_pln_per_mwh"]
+    resolved, _ = _resolve_prices(scenario, year)
     if prices_pln_per_mwh is None:
-        prices_pln_per_mwh = {k: float(v) for k, v in data.items() if isinstance(v, (int, float))}
+        prices_pln_per_mwh = resolved
     if electricity_price_pln_per_mwh is None:
         electricity_price_pln_per_mwh = prices_pln_per_mwh["energia_elektryczna"]
     if pinch_k is None:
@@ -411,6 +447,10 @@ def variant_economics(
     source_ok = True
     if variant.t_preheat_required_k is not None:
         source_ok = variant.t_preheat_required_k <= heat_source.max_gas_temp_k(pinch_k)
+    if heat_source.available_kw is not None:
+        source_ok = source_ok and (
+            variant.preheat_duty_w / 1e3 <= heat_source.available_kw * (1 + 1e-9)
+        )
 
     if heat_source.energy_carrier not in prices_pln_per_mwh:
         raise ValueError(
@@ -428,4 +468,56 @@ def variant_economics(
         preheat_cost_pln_per_year=cost,
         electricity_revenue_pln_per_year=revenue,
         net_cost_pln_per_year=cost - revenue,
+    )
+
+
+def heat_source_from_compression(
+    compression_result,
+    mass_flow_kg_per_s: float,
+    approach_k: float = 10.0,
+    cooldown_to_k: float | None = None,
+    name_pl: str = "ciepło odpadowe sprężarki (policzone w M2)",
+) -> HeatSource:
+    """Buduje źródło ciepła M13 z POLICZONEGO sprężania M2 (nie z danych).
+
+    Temperatura zasilania wody = najniższa temperatura tłoczenia spośród
+    stopni − ``approach_k`` (wymiennik odzysku; najzimniejszy stopień
+    limituje wspólny obieg wody). Dostępna moc = ciepło chłodnic
+    międzystopniowych + chłodnicy końcowej (do ``cooldown_to_k``,
+    domyślnie temperatura ssania).
+
+    Args:
+        compression_result: wynik ``core.compression.compress`` (M2),
+        mass_flow_kg_per_s: strumień sprężanego gazu [kg/s],
+        approach_k: przewężenie temperaturowe wymiennika [K],
+        cooldown_to_k: temperatura schłodzenia w chłodnicy końcowej.
+    """
+    if mass_flow_kg_per_s <= 0:
+        raise ValueError("Strumień sprężanego gazu musi być dodatni.")
+    min_stage_out_k = min(s.temperature_out_k for s in compression_result.stages)
+    supply_c = min_stage_out_k - approach_k - 273.15
+    if supply_c <= 5.0:
+        raise ValueError(
+            "Sprężarka o zbyt niskiej temperaturze tłoczenia "
+            f"({min_stage_out_k - 273.15:.0f} °C) — brak użytecznego ciepła."
+        )
+    target_k = cooldown_to_k if cooldown_to_k is not None else compression_result.temperature_in_k
+    available_w = (
+        compression_result.cooling_duty_w(mass_flow_kg_per_s)
+        + compression_result.aftercooler_heat_j_per_kg(target_k) * mass_flow_kg_per_s
+    )
+    return HeatSource(
+        key="m2_sprezarka_policzona",
+        name_pl=name_pl,
+        supply_temp_c=supply_c,
+        energy_carrier="odpadowe",
+        efficiency_hi=1.0,
+        cop=None,
+        source=(
+            f"Policzone (M2): {compression_result.pressure_in_pa / 1e5:.1f}→"
+            f"{compression_result.pressure_out_pa / 1e5:.1f} bar, "
+            f"{len(compression_result.stages)} stopni"
+        ),
+        note=f"Limit mocy cieplnej: {available_w / 1e3:.0f} kW (z bilansu chłodnic).",
+        available_kw=available_w / 1e3,
     )

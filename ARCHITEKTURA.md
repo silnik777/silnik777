@@ -27,17 +27,17 @@ przeliczenia w UI to jednostki wejść przez funkcje `core`).
 | Moduł | Kluczowe WEJŚCIA (skąd) | Kluczowe WYJŚCIA | Konsumenci (jak) |
 |---|---|---|---|
 | **M1** skład+właściwości | składy `data/gas_compositions` (D), p,T od użytkownika | `GasComposition`, ρ, Z, cp, μ, w, μJT; Hs/Hi/Wobbe (ISO 6976); MN; flagi jakości | M2–M15 — **A** (każdy moduł liczy na `GasComposition`) |
-| **M2** sprężanie | M1 (A), biblioteka sprężarek (D) | praca kWh/kg·Nm³, T tłoczenia stopni, ciepło chłodnic | M3 (energia tłoczenia, A), M12 (napełnianie, A), M13 (⚠ ciepło odpadowe — **P**: statyczny wpis 70 °C w danych, nie wynik M2) |
+| **M2** sprężanie | M1 (A), biblioteka sprężarek (D) | praca kWh/kg·Nm³, T tłoczenia stopni, ciepło chłodnic | M3 (energia tłoczenia, A), M12 (napełnianie, A), **M13 ciepło odpadowe — A** (`heat_source_from_compression`: `HeatSource` z policzonego sprężania — poziom T stopni + dostępna moc; §3.2 zamknięte) |
 | **M3** gazociąg | M1 (A), chropowatości (D) | P₂/przepływ/średnica, profil p,v | M15 (kalibracja oporów K — A), M12 pośrednio |
-| **M4** ekspandery | M1 (A), biblioteka ekspanderów (D) | moc odzyskana, T wylotu, macierz doboru (CAPEX/kW, TRL) | M13 (wariant ekspanderowy — A), M12 CAES (A); ⚠ M10 — **brak mostka** (LCOE ekspandera tylko ręcznie przez M14 — R) |
-| **M5** ceny | scenariusze (D + JSON użytkownika) | ścieżki cen nośników, EUA/ETS2, emisyjność miksu | M6, M7, M8–M9, M10, M11 — **A**; ⚠ M13 — **NIE** (własne ceny robocze — patrz §3.1) |
+| **M4** ekspandery | M1 (A), biblioteka ekspanderów (D) | moc odzyskana, T wylotu, macierz doboru (CAPEX/kW, TRL) | M13 (wariant ekspanderowy — A), M12 CAES (A); **M10 — A** (`expander_station_economics`: LCOE/NPV/IRR przyrostowo vs JT; §3.5 zamknięte) |
+| **M5** ceny | scenariusze (D + JSON użytkownika) | ścieżki cen nośników, EUA/ETS2, emisyjność miksu | M6, M7, M8–M9, M10, M11 — **A**; **M13 — A** (`variant_economics(scenario, year)`; ceny robocze tylko fallback — §3.1 zamknięte) |
 | **M6** wodór | biblioteka IEA (D), M5 (A), M1 Hi(H2) (A) | kWh/kg, woda, emisje 1+2, koszt energii | M10 LCOH (A), M14 (R) |
 | **M7** wytwarzanie | katalogi DEA/IEA (D), M5 (A), M8 emisje gazu (A) | η/COP/cf, g CO₂/kWh, koszt paliwowy | M10 LCOE (A), M11 (A), **M13 źródła ciepła (A — `heat_source_entries`)** |
 | **M8–M9** emisje | M1 stechiometria (A), GWP AR6 (D), miks z M5 (A) | kg CO₂/Nm³·kWh·kg, CO₂eq ucieczek, zakres 2 | M7 (A), M6 (A), M10 koszt EUA (A), M14 (R) |
 | **M10** ekonomia | M5 (A), M6 (A), M7 (A), WACC/okres od użytkownika | LCOH/LCOE z dekompozycją, NPV/IRR/DPP, tornado | M11 (A), M14 (R) |
 | **M11** benchmark | M10 (A), M7 (A), bateria+dyspozycyjność (D) | ranking wielokryterialny | M14 (R) |
-| **M12** linepack/CAES | M1 (A), M2 sprężanie (A), M4 rozprężanie (A) | bufor MWh, round-trip CAES | M14 (R) |
-| **M13** stacja redukcyjna | M1 (A), M4 (A), hydraty (A), źródła ciepła: M7 (A) + baza (D) + sprężarki (**P**) | podgrzew/odzysk/chłód, porównanie wariantów | M14 (R); ⚠ ceny: własne robocze (**P**), nie M5 |
+| **M12** linepack/CAES | M1 (A), M2 sprężanie (A), M4 rozprężanie (A) | bufor MWh, round-trip CAES (praca cyklu całkowana po N krokach ciśnienia — §3.4 zamknięte) | M14 (R) |
+| **M13** stacja redukcyjna | M1 (A), M4 (A), hydraty (A), źródła ciepła: M7 (A) + baza (D) + sprężarki M2 (**A** — policzone), ceny: M5 (A) + robocze (fallback) | podgrzew/odzysk/chłód, porównanie wariantów, opłacalność ekspandera (M10) | M14 (R) |
 | **M14** karta projektu | wskaźniki z M1–M13 — **R** (pola formularza z podpowiedzią „gdzie policzyć") | karta JSON, ranking projektów, XLSX/CSV | Power BI/Excel (eksport) |
 | **M15** sieć | M1 składy źródeł (A), M3 kalibracja K (A), jakość: M1+MN (A) | ciśnienia, przepływy, składy węzłów, strefy mieszania, flagi E | eksport CSV |
 
@@ -48,34 +48,57 @@ GWP tylko w `emission_factors.yaml`.
 
 ## 3. Znane luki i niespójności (stan na audyt)
 
-### 3.1 Dwa źródła cen (M13 vs M5) — priorytet 1
-`variant_economics` (M13) liczy na cenach roboczych z
+> **Aktualizacja:** luki 3.1–3.5 z audytu zostały **zamknięte**
+> (implementacja + testy). Opis zachowany jako zapis decyzji; poniżej,
+> w każdej pozycji, wskazano rozwiązanie i miejsce w kodzie.
+
+### 3.1 Dwa źródła cen (M13 vs M5) — priorytet 1 — ✅ ZAMKNIĘTE
+`variant_economics` (M13) liczyło na cenach roboczych z
 `reduction_stations.yaml`, nie na ścieżkach scenariuszy M5. Zmiana
-scenariusza w M5 nie wpływa na M13. Docelowo: `variant_economics`
-przyjmuje `(scenario, year)`; ceny robocze zostają wyłącznie jako fallback.
+scenariusza w M5 nie wpływała na M13.
+**Rozwiązanie:** `variant_economics(..., scenario, year)` +
+`_resolve_prices` (`core/cold_reduction.py`) — ceny nośników M5 są jedynym
+źródłem prawdy, ceny robocze zostają wyłącznie jako fallback (nośnik
+„odpadowe" zawsze po koszcie krańcowym). UI M13 ma przełącznik scenariusz
+M5 / ceny robocze. Testy: `tests/test_cold_reduction.py::TestScenarioPrices`.
 
-### 3.2 Ciepło odpadowe sprężarek = placeholder — priorytet 1
-Wpis „ciepło odpadowe sprężarek (60–80 °C)" to statyczne dane, nie wynik
-M2. Docelowo: funkcja w M2 budująca `HeatSource` z policzonego sprężania
-(poziomy T stopni, dostępna moc), podawana do M13.
+### 3.2 Ciepło odpadowe sprężarek = placeholder — priorytet 1 — ✅ ZAMKNIĘTE
+Wpis „ciepło odpadowe sprężarek (60–80 °C)" był statycznym wpisem, nie
+wynikiem M2.
+**Rozwiązanie:** `heat_source_from_compression(compression_result, ṁ, …)`
+(`core/cold_reduction.py`) buduje `HeatSource` z policzonego sprężania M2:
+poziom temperatury zasilania = najzimniejszy stopień − pinch, dostępna moc
+= ciepło chłodnic międzystopniowych + końcowej. `HeatSource.available_kw`
+jest sprawdzane w `heat_source_ok` (flaga ❌ przy niedoborze mocy). UI M13:
+sekcja „🔥 Policz ciepło odpadowe sprężarki (M2)". Testy:
+`tests/test_cold_reduction.py::TestCompressionHeatSource`.
 
-### 3.3 Alokacja kosztów kogeneracji w M10 — priorytet 2
-LCOE dla kogeneracji: paliwo i CO₂ dzielone metodą energetyczną (η_całk),
-ale CAŁY CAPEX przypisany energii elektrycznej, a produkcja = tylko MWh el.
-Mieszana metodyka (dokumentowana w M7, nieopisana w M10). Docelowo: spójna
-alokacja albo jawny kredyt ciepła jako parametr.
+### 3.3 Alokacja kosztów kogeneracji w M10 — priorytet 2 — ✅ ZAMKNIĘTE
+LCOE kogeneracji dzieliło paliwo i CO₂ metodą energetyczną (η_całk), ale
+CAŁY CAPEX przypisywało energii elektrycznej — metodyka mieszana.
+**Rozwiązanie:** `lcoe_for_technology` (`core/economics.py`) alokuje CAPEX
+(i pochodny OPEX) na produkt elektryczny proporcjonalnie do udziału
+energetycznego `η_el/η_całk` — spójnie z metodą energetyczną z M7. Testy:
+`tests/test_economics.py::TestCHPCapexAllocation`.
 
-### 3.4 Praca cyklu bufora w M12 przy stałych końcach — priorytet 2
-Napełnianie: cała masa Δm sprężana od p_min do p_max (rzeczywiste
-przeciwciśnienie rośnie stopniowo → praca zawyżona); opróżnianie (CAES):
-cała Δm rozprężana od p_max (ciśnienie bufora spada → odzysk zawyżony).
-Błędy częściowo znoszą się w round-trip; oba strumienie zawyżone
-~10–20%. Docelowo: całkowanie napełniania/opróżniania w N krokach ciśnienia.
+### 3.4 Praca cyklu bufora w M12 przy stałych końcach — priorytet 2 — ✅ ZAMKNIĘTE
+Napełnianie/opróżnianie liczone dla całej masy Δm przy stałych końcach
+(p_min→p_max) zawyżało oba strumienie ~10–20%.
+**Rozwiązanie:** praca cyklu **całkowana po stanie bufora** w N = 8 krokach
+ciśnienia (`core/linepack.py`): porcje Δmᵢ sprężane/rozprężane względem
+bieżącego (rosnącego/malejącego) ciśnienia bufora. Testy:
+`tests/test_air_caes.py::TestLinepackIntegration` (oba strumienie < skok
+jednorazowy, round-trip nadal 0,2–1,0).
 
-### 3.5 Brak mostka M4 → M10 — priorytet 2
-CAPEX/kW ekspanderów jest w danych i macierzy doboru, ale M10 nie ma
-kalkulatora opłacalności ekspandera (przychód = energia odzyskana,
-koszty = CAPEX + podgrzew netto z M13). Dziś ścieżka ręczna przez M14.
+### 3.5 Brak mostka M4 → M10 — priorytet 2 — ✅ ZAMKNIĘTE
+CAPEX/kW ekspanderów był w danych, ale M10 nie miał kalkulatora
+opłacalności ekspandera.
+**Rozwiązanie:** `expander_station_economics(...)` (`core/economics.py`) —
+rachunek przyrostowy względem wariantu JT: CAPEX = moc odzyskana × €/kW
+(mapa doboru M4), koszt = dodatkowy podgrzew ponad JT wg źródła ciepła M13
+i cen M5, przychód = energia elektryczna × cena energii (ścieżka M5 rok po
+roku); zwraca LCOE/NPV/IRR/DPP. UI M13: sekcja „💰 Opłacalność ekspandera".
+Testy: `tests/test_economics.py::TestExpanderStationEconomics`.
 
 ### 3.6 M14 zasilana ręcznie — świadoma decyzja
 Karta projektu zbiera wskaźniki wpisywane przez użytkownika (z podpowiedzią

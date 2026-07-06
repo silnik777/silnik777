@@ -165,8 +165,12 @@ bufor o ~10–12% względem przybliżenia stałym Z̄.
 (uproszczenie: pomijamy profil ciśnienia wzdłuż odcinka — dla oszacowań
 plus/minus kilka procent). **Dynamika:** czas = energia bufora / pobór.
 
-**Round-trip (M2):** energia elektryczna napełnienia = Δm × praca sprężania
-p_min→p_max (politropowa, η 0,82, napęd 0,95). Dla H2 bufor objętościowo
-~3× mniejszy, a koszt sprężania na MWh kilkukrotnie wyższy — oba efekty
-widoczne w porównaniu.
+**Round-trip (M2):** praca cyklu **całkowana po stanie bufora** w 8 krokach
+ciśnienia — kolejne porcje Δmᵢ sprężane od p_min do bieżącego (rosnącego)
+ciśnienia bufora, a przy opróżnianiu rozprężane od bieżącego (malejącego)
+ciśnienia do p_min. Pojedynczy skok p_min→p_max dla całej masy zawyżałby
+oba strumienie o ~10–20% (przeciwciśnienie/odzysk zmieniają się w trakcie).
+Sprężanie politropowe (η 0,82, napęd 0,95), rozprężanie CAES (η 0,80). Dla
+H2 bufor objętościowo ~3× mniejszy, a koszt sprężania na MWh kilkukrotnie
+wyższy — oba efekty widoczne w porównaniu.
             """)

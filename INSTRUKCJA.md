@@ -71,6 +71,15 @@ odpowiadać; kartę przeglądarki można zamknąć w dowolnym momencie.
   P₂** (podajesz przepływ i rurę), **maksymalny przepływ** (podajesz wymagane
   P₂) albo **dobór średnicy** (podajesz przepływ i wymagane P₂) — nie trzeba
   znać wszystkiego naraz.
+- **M13 — Stacja redukcyjna (ceny M5, ciepło sprężarki, opłacalność
+  ekspandera)**: koszty można liczyć na **scenariuszu cenowym M5**
+  (przełącznik „Źródło cen” + rok) zamiast cen roboczych — spina M13 z
+  resztą narzędzia. Źródłem podgrzewu może być **policzone ciepło odpadowe
+  sprężarki** (sekcja „🔥 Policz ciepło odpadowe sprężarki (M2)”: podajesz
+  ciśnienia i strumień, narzędzie wyznacza temperaturę zasilania i dostępną
+  moc; przy niedoborze mocy wariant dostaje flagę ❌). Sekcja **„💰
+  Opłacalność ekspandera”** liczy LCOE / NPV / IRR / okres zwrotu odzysku
+  energii na ekspanderze (przyrostowo względem klasycznego JT).
 - **M15 — Sieć gazowa (graf)**: narysuj prostą sieć dwiema tabelami
   (węzły i odcinki, także z pętlami). Trzy typy węzłów: **zasilanie**
   (ciśnienie + skład), **pobór** (Nm³/h) oraz **wtłoczenie** — biometanownia

@@ -117,21 +117,40 @@ def linepack(
     buffer_mwh = (m_max - m_min) * hi_mj_per_kg / 3600.0
     total_mwh = m_max * hi_mj_per_kg / 3600.0
 
-    comp = compress(
-        composition,
-        pressure_min_pa,
-        temperature_k,
-        pressure_max_pa,
-        eta=compressor_eta,
-        model="politropowy",
-    )
-    compression_kwh = comp.work_kwh_per_kg * (m_max - m_min) / mech_el_efficiency
-
-    # CAES: praca elektryczna odzyskana przy rozprężaniu bufora p_max→p_min.
-    expansion = expand(
-        composition, pressure_max_pa, temperature_k, pressure_min_pa, eta=expander_eta
-    )
-    recovered_kwh = j_to_kwh(expansion.work_j_per_kg) * (m_max - m_min) * mech_el_efficiency
+    # Praca cyklu CAŁKOWANA po stanie bufora (N kroków ciśnienia):
+    #   napełnianie: kolejne porcje Δm_i sprężane z p_min do BIEŻĄCEGO
+    #   ciśnienia bufora (rosnącego p_min→p_max),
+    #   opróżnianie (CAES): porcje rozprężane z bieżącego ciśnienia bufora
+    #   (malejącego p_max→p_min) do p_min.
+    # Pojedynczy skok p_min→p_max dla całej masy zawyżałby oba strumienie
+    # o ~10–20% (patrz ARCHITEKTURA.md §3.4).
+    n_steps = 8
+    dp = (pressure_max_pa - pressure_min_pa) / n_steps
+    pressures = [pressure_min_pa + i * dp for i in range(n_steps + 1)]
+    masses = [
+        compute_properties(composition, p, temperature_k).density_kg_per_m3 * volume
+        for p in pressures
+    ]
+    compression_kwh = 0.0
+    recovered_kwh = 0.0
+    for i in range(n_steps):
+        dm = masses[i + 1] - masses[i]
+        p_mid = 0.5 * (pressures[i] + pressures[i + 1])
+        work_in = compress(
+            composition,
+            pressure_min_pa,
+            temperature_k,
+            p_mid,
+            eta=compressor_eta,
+            model="politropowy",
+        ).work_kwh_per_kg
+        compression_kwh += dm * work_in
+        work_out = expand(
+            composition, p_mid, temperature_k, pressure_min_pa, eta=expander_eta
+        ).work_j_per_kg
+        recovered_kwh += dm * j_to_kwh(work_out)
+    compression_kwh /= mech_el_efficiency
+    recovered_kwh *= mech_el_efficiency
     caes_recovered_mwh = recovered_kwh / 1e3
     round_trip = recovered_kwh / compression_kwh if compression_kwh > 0 else 0.0
 

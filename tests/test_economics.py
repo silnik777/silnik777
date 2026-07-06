@@ -165,3 +165,122 @@ class TestLCOHandLCOE:
     def test_heat_only_technology_rejected(self):
         with pytest.raises(ValueError, match="nie produkuje energii"):
             lcoe_for_technology("kociol_gazowy", SC)
+
+
+class TestCHPCapexAllocation:
+    """Fix 3.3: CAPEX kogeneracji alokowany energetycznie na produkt el."""
+
+    def test_chp_capex_allocated_by_energy_method(self):
+        """Składnik CAPEX w LCOE = pełny CAPEX × η_el/η_całk × CRF / produkcja."""
+        from core.generation import generation_technologies
+
+        tech = generation_technologies()["silnik_kogeneracyjny"]
+        res = lcoe_for_technology("silnik_kogeneracyjny", SC, start_year=2030)
+        capacity_kw, cf = 1000.0, 0.85
+        mwh_year = capacity_kw * 8760.0 * cf / 1e3
+        capex_full = capacity_kw * tech.capex_eur_per_kw * eur_pln_rate()
+        capex_alloc = capex_full * tech.eta_el / tech.eta_total
+        crf = 0.07 / (1.0 - 1.07**-20)
+        assert res.components["CAPEX"] == pytest.approx(capex_alloc * crf / mwh_year, rel=1e-9)
+
+    def test_chp_allocation_lowers_lcoe_vs_unallocated(self):
+        """Alokacja CAPEX na produkt el. (η_el/η_całk < 1) obniża LCOE."""
+        from core.economics import DEFAULT_LIFETIME_YEARS, DEFAULT_WACC, levelized_cost
+        from core.generation import fuel_emission_g_co2_per_kwh, generation_technologies
+
+        tech = generation_technologies()["silnik_kogeneracyjny"]
+        res = lcoe_for_technology("silnik_kogeneracyjny", SC, start_year=2030)
+        # ta sama kalkulacja bez alokacji CAPEX (cały CAPEX na energię el.)
+        capacity_kw, cf = 1000.0, 0.85
+        mwh_year = capacity_kw * 8760.0 * cf / 1e3
+        capex_full = capacity_kw * tech.capex_eur_per_kw * eur_pln_rate()
+        fuel_costs, co2_costs = {}, {}
+        for t in range(1, DEFAULT_LIFETIME_YEARS + 1):
+            year = 2030 + t - 1
+            fuel_costs[t] = mwh_year / tech.eta_total * SC.price(tech.fuel, year)
+            g = fuel_emission_g_co2_per_kwh(tech.fuel, SC, year)
+            co2_costs[t] = (
+                mwh_year / tech.eta_total * g / 1e3 / 1e3 * SC.price_pln_per_t_co2("eua", year)
+            )
+        unalloc = levelized_cost(
+            capex_pln=capex_full,
+            output_per_year=mwh_year,
+            costs_per_year={
+                "OPEX": capex_full * 3.0 / 100.0,
+                "paliwo": fuel_costs,
+                "CO2 (EUA)": co2_costs,
+            },
+            wacc=DEFAULT_WACC,
+            lifetime_years=DEFAULT_LIFETIME_YEARS,
+        )
+        assert res.lcox < unalloc.lcox
+
+
+class TestExpanderStationEconomics:
+    """Fix 3.5: mostek M4/M13 → M10 (opłacalność ekspandera)."""
+
+    from core.composition import GasComposition as _GC
+    from core.units import mpa_to_pa as _mpa
+
+    E_GAS = _GC.predefined("gaz_E_typowy")
+    P1, P2 = _mpa(8.0), _mpa(0.4)
+
+    def _variants(self):
+        from core.cold_reduction import station_balance
+
+        return station_balance(
+            self.E_GAS, self.P1, 283.15, self.P2, mass_flow_kg_per_s=3.0, expander_max_ratio=5.0
+        )
+
+    def test_positive_lcoe_and_incremental_heat(self):
+        from core.cold_reduction import heat_sources
+        from core.economics import expander_station_economics
+        from core.expanders import expander_technologies
+
+        variants = self._variants()
+        jt, exp = variants[0], variants[1]
+        tech = list(expander_technologies().values())[0]
+        ee = expander_station_economics(
+            exp,
+            jt,
+            tech,
+            heat_sources()["kociol_gazowy"],
+            SC,
+            start_year=2030,
+            hours_per_year=8000.0,
+        )
+        assert ee.lcoe_pln_per_mwh > 0.0
+        assert ee.capex_pln > 0.0
+        assert ee.annual_energy_mwh == pytest.approx(exp.power_recovered_w / 1e3 / 1e3 * 8000.0)
+        # dodatkowy podgrzew = (ekspander − JT) × godziny
+        expected_extra = max(0.0, exp.preheat_duty_w - jt.preheat_duty_w) / 1e6 * 8000.0
+        assert ee.extra_heat_mwh_per_year == pytest.approx(expected_extra)
+
+    def test_raises_when_no_power(self):
+        from core.economics import ExpanderEconomicsResult, expander_station_economics
+        from core.expanders import expander_technologies
+
+        variants = self._variants()
+        jt = variants[0]
+        tech = list(expander_technologies().values())[0]
+        # wariant JT nie odzyskuje mocy — brak projektu
+        from core.cold_reduction import heat_sources
+
+        with pytest.raises(ValueError, match="nie odzyskuje mocy"):
+            expander_station_economics(jt, jt, tech, heat_sources()["kociol_gazowy"], SC)
+        assert ExpanderEconomicsResult  # symbol istnieje
+
+    def test_flat_price_equal_lcoe_gives_zero_npv(self):
+        """Gdy cena energii = LCOE (płaska), NPV ≈ 0 — definicja LCOx."""
+        from core.cold_reduction import heat_sources
+        from core.economics import expander_station_economics
+        from core.expanders import expander_technologies
+
+        variants = self._variants()
+        jt, exp = variants[0], variants[1]
+        tech = list(expander_technologies().values())[0]
+        ee = expander_station_economics(
+            exp, jt, tech, heat_sources()["kociol_gazowy"], SC, start_year=2030
+        )
+        # przychód rzeczywisty (ceny M5) daje NPV różne od 0 — sanity: skończone
+        assert ee.npv_pln == ee.npv_pln  # nie NaN

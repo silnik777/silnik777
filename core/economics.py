@@ -345,8 +345,12 @@ def lcoe_for_technology(
 ) -> LevelizedCostResult:
     """LCOE [PLN/MWh el.] dla technologii elektrycznych/kogeneracyjnych z M7.
 
-    Produkcja = moc × cf (PV/wiatr: cf z biblioteki; paliwowe: cf 0,85);
-    kogeneracja: koszt paliwa metodą energetyczną jak w M7 (nota w UI).
+    Produkcja = moc × cf (PV/wiatr: cf z biblioteki; paliwowe: cf 0,85).
+    Kogeneracja — SPÓJNA alokacja metodą energetyczną (jak w M7): paliwo,
+    CO2 ORAZ CAPEX/OPEX obciążają energię elektryczną proporcjonalnie do
+    jej udziału energetycznego (η_el/η_całk); wynik = LCOE części
+    elektrycznej wg metody energetycznej (alternatywy: metoda elektrowni
+    zastępczej, kredyt ciepła — poza zakresem, nota w UI).
     """
     from core.generation import fuel_emission_g_co2_per_kwh, generation_technologies
     from core.prices import eur_pln_rate
@@ -359,6 +363,9 @@ def lcoe_for_technology(
     cf = tech.eta_el if free_fuel else 0.85
     mwh_year = capacity_kw * 8760.0 * cf / 1e3
     capex = capacity_kw * tech.capex_eur_per_kw * eur_pln_rate()
+    if tech.category == "kogeneracja" and tech.eta_heat:
+        # alokacja energetyczna CAPEX na produkt elektryczny
+        capex *= tech.eta_el / tech.eta_total
 
     fuel_costs, co2_costs = {}, {}
     eta_basis = tech.eta_total if tech.category == "kogeneracja" else tech.eta_el
@@ -385,4 +392,96 @@ def lcoe_for_technology(
         costs_per_year=costs,
         wacc=wacc,
         lifetime_years=lifetime_years,
+    )
+
+
+# --- Mostek M4/M13 → M10: opłacalność ekspandera na stacji redukcyjnej ------
+
+
+@dataclass(frozen=True)
+class ExpanderEconomicsResult:
+    """Opłacalność ekspandera na stacji (przyrostowo względem wariantu JT)."""
+
+    capex_pln: float
+    annual_energy_mwh: float
+    extra_heat_mwh_per_year: float  # dodatkowy podgrzew ponad wariant JT
+    lcoe_pln_per_mwh: float  # koszt uśredniony energii z ekspandera
+    components: dict[str, float]
+    npv_pln: float
+    irr: float | None
+    dpp_years: float | None
+
+
+def expander_station_economics(
+    expander_variant,
+    jt_variant,
+    technology,
+    heat_source,
+    scenario: PriceScenario,
+    start_year: int = 2030,
+    hours_per_year: float = 8000.0,
+    wacc: float = DEFAULT_WACC,
+    lifetime_years: int = DEFAULT_LIFETIME_YEARS,
+    opex_pct_capex: float = 3.0,
+) -> ExpanderEconomicsResult:
+    """Ekonomika ekspandera na stacji redukcyjnej (integracja M13+M4→M10).
+
+    Rachunek PRZYROSTOWY względem stanu istniejącego (wariant JT):
+        * CAPEX = moc odzyskana × CAPEX/kW technologii (biblioteka M4),
+        * koszt roczny = OPEX (% CAPEX) + DODATKOWY podgrzew ponad wariant
+          JT (ekspansja chłodzi silniej) wyceniony wg źródła ciepła M13
+          i ścieżek cen M5 po latach kalendarzowych,
+        * produkt = energia elektryczna odzyskana [MWh/rok],
+        * NPV/IRR/DPP przy przychodzie = energia × cena energii ze ścieżki
+          M5 (rok po roku).
+
+    Args:
+        expander_variant, jt_variant: wyniki ``station_balance`` (M13),
+        technology: ``ExpanderTechnology`` (M4),
+        heat_source: ``HeatSource`` (M13/M7/M2),
+        scenario: scenariusz cenowy M5 (jedno źródło prawdy cen).
+    """
+    from core.cold_reduction import _resolve_prices
+    from core.prices import eur_pln_rate
+
+    power_kw = expander_variant.power_recovered_w / 1e3
+    if power_kw <= 0:
+        raise ValueError("Wariant ekspanderowy nie odzyskuje mocy — brak projektu.")
+    capex = power_kw * technology.capex_eur_per_kw_typical * eur_pln_rate()
+    annual_mwh = power_kw / 1e3 * hours_per_year
+    extra_heat_mwh = (
+        max(0.0, expander_variant.preheat_duty_w - jt_variant.preheat_duty_w) / 1e6 * hours_per_year
+    )
+
+    heat_costs: dict[int, float] = {}
+    revenues_by_year: dict[int, float] = {}
+    for t in range(1, lifetime_years + 1):
+        year = start_year + t - 1
+        prices, _ = _resolve_prices(scenario, year)
+        carrier_price = prices[heat_source.energy_carrier]
+        heat_costs[t] = extra_heat_mwh * heat_source.energy_input_per_heat() * carrier_price
+        revenues_by_year[t] = annual_mwh * scenario.price("energia_elektryczna", year)
+
+    levelized = levelized_cost(
+        capex_pln=capex,
+        output_per_year=annual_mwh,
+        costs_per_year={
+            "OPEX": capex * opex_pct_capex / 100.0,
+            "dodatkowy podgrzew (vs JT)": heat_costs,
+        },
+        wacc=wacc,
+        lifetime_years=lifetime_years,
+    )
+    cash_flows = dict(levelized.cash_flows)
+    for t, revenue in revenues_by_year.items():
+        cash_flows[t] = cash_flows.get(t, 0.0) + revenue
+    return ExpanderEconomicsResult(
+        capex_pln=capex,
+        annual_energy_mwh=annual_mwh,
+        extra_heat_mwh_per_year=extra_heat_mwh,
+        lcoe_pln_per_mwh=levelized.lcox,
+        components=levelized.components,
+        npv_pln=npv(cash_flows, wacc),
+        irr=irr(cash_flows),
+        dpp_years=discounted_payback_years(cash_flows, wacc),
     )
