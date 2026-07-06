@@ -122,3 +122,10 @@ def test_m15_page_renders_without_exception():
     assert not at.exception
     assert not at.error, [e.value for e in at.error]
     assert at.title[0].value.startswith("M15")
+
+
+def test_m16_page_renders_without_exception():
+    at = _render_view("m16_gas_release")
+    assert not at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert "Straty gazu" in at.title[0].value

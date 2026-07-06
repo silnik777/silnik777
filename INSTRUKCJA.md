@@ -96,6 +96,12 @@ odpowiadać; kartę przeglądarki można zamknąć w dowolnym momencie.
   moc; przy niedoborze mocy wariant dostaje flagę ❌). Sekcja **„💰
   Opłacalność ekspandera”** liczy LCOE / NPV / IRR / okres zwrotu odzysku
   energii na ekspanderze (przyrostowo względem klasycznego JT).
+- **Straty gazu z awarii**: policz niekontrolowany wypływ przez otwór/
+  rozszczelnienie — reżim (krytyczny/podkrytyczny), prędkość krytyczną,
+  natężenie masowe i objętościowe (Nm³/h, Nm³/min). Opcjonalnie **blowdown**
+  (czas i profil opróżniania odcinka + całkowita objętość utraconego gazu)
+  oraz przesiewowa **strefa zagrożenia wybuchem** (zasięg do LEL). Właściwości
+  gazu z GERG-2008 (M1).
 - **M15 — Sieć gazowa (graf)**: narysuj prostą sieć dwiema tabelami
   (węzły i odcinki, także z pętlami). Trzy typy węzłów: **zasilanie**
   (ciśnienie + skład), **pobór** (Nm³/h) oraz **wtłoczenie** — biometanownia

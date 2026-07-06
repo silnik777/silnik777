@@ -25,6 +25,7 @@ from app.views import (
     m13_cold_reduction,
     m14_project_card,
     m15_network,
+    m16_gas_release,
 )
 
 
@@ -103,6 +104,22 @@ MODULES: list[ModuleInfo] = [
         stage=8,
         icon="🕸️",
         render=m15_network.render,
+    ),
+    ModuleInfo(
+        code="M16",
+        slug="m16-straty-awaryjne",
+        title="Straty gazu z awarii",
+        section="Właściwości i przepływ",
+        description=(
+            "Niekontrolowany wypływ przez otwór/rozszczelnienie: prędkość krytyczna "
+            "wypływu, natężenie masowe i objętościowe [Nm³/h, Nm³/min], całkowita "
+            "objętość utraconego gazu, blowdown odcinka (spadek ciśnienia w czasie) "
+            "oraz przesiewowa strefa zagrożenia wybuchem (LEL/UEL). Właściwości "
+            "gazu z GERG-2008 (M1)."
+        ),
+        stage=8,
+        icon="💨",
+        render=m16_gas_release.render,
     ),
     ModuleInfo(
         code="M4",
