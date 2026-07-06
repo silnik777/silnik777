@@ -135,3 +135,22 @@ biogaz z NH₃ → `thermo` lub NeqSim dla tego modułu; (b) wymóg certyfikacji
 AGA8-DETAIL → `pyaga8` jako opcjonalny backend obok CoolProp. Oba do
 dołożenia punktowo — architektura `core/gas_properties.py` (jeden punkt
 liczenia właściwości) na to pozwala bez zmian w modułach M2–M15.
+
+## 5. Rozszerzenia względem specyfikacji funkcjonalnej
+
+Uzupełnienia wykonane po porównaniu ze specyfikacją funkcjonalną użytkownika:
+
+| Funkcja | Realizacja (core / UI) | Testy |
+|---|---|---|
+| Właściwości M1: przewodność cieplna λ | `core/gas_properties.py` (λ z CoolProp) | test_flammability |
+| Właściwości M1: granice wybuchowości LEL/UEL | `core/flammability.py` (Le Chatelier) + `data/flammability.yaml` | test_flammability |
+| Generator tabel/wykresów właściwości p,T | zakładka w `app/views/m01_gas_properties.py` | smoke M1 |
+| **Straty gazu z awarii** (nowy moduł) | `core/gas_release.py` (wypływ krytyczny/podkrytyczny, blowdown, strefa LEL) + `app/views/m16_gas_release.py` | test_gas_release |
+| M10: LCOHeat (koszt ciepła) | `lcoheat_for_technology` (`core/economics.py`) | test_economics |
+| M10: LCOS (koszt magazynowania) | `lcos_for_storage` (`core/economics.py`) | test_economics |
+| M7: merit order + screening curves | `core/screening.py` + zakładka w `app/views/m07_generation.py` | test_screening |
+
+Świadomie pominięte (poza zakresem lub decyzja wcześniejsza): warianty
+obliczeń A/B/C w M1 (jedna metoda GERG-2008, patrz §4); T_dew wody (wymaga
+H₂O poza GERG); eksport PDF/PPT (przyjęto XLSX/CSV); krzywa MAC (M9) i
+dashboard strategiczny (5.5) — kandydaci na kolejny etap.

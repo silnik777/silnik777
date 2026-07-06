@@ -7,6 +7,8 @@ from core.economics import (
     irr,
     lcoe_for_technology,
     lcoh_for_technology,
+    lcoheat_for_technology,
+    lcos_for_storage,
     levelized_cost,
     npv,
     project_metrics,
@@ -165,6 +167,82 @@ class TestLCOHandLCOE:
     def test_heat_only_technology_rejected(self):
         with pytest.raises(ValueError, match="nie produkuje energii"):
             lcoe_for_technology("kociol_gazowy", SC)
+
+
+class TestLCOHeat:
+    def test_solar_collector_no_fuel_cost(self):
+        """Kolektor słoneczny: brak kosztu paliwa, LCOHeat = sam CAPEX/OPEX."""
+        r = lcoheat_for_technology("kolektor_sloneczny", SC, start_year=2030)
+        assert "paliwo/energia" not in r.components
+        assert r.lcox > 0.0
+
+    def test_electric_boiler_costlier_than_condensing(self):
+        """Kocioł elektryczny droższy w cieple niż kondensacyjny gazowy."""
+        el = lcoheat_for_technology("kociol_elektryczny", SC, start_year=2030)
+        gas = lcoheat_for_technology("kociol_gazowy_kondensacyjny", SC, start_year=2030)
+        assert el.lcox > gas.lcox
+
+    def test_gas_boiler_has_ets(self):
+        r = lcoheat_for_technology("kociol_gazowy", SC, start_year=2030)
+        assert r.components.get("CO2 (EUA)", 0.0) > 0.0
+
+    def test_heat_pump_uses_cop(self):
+        """Pompa ciepła (COP>1): koszt energii < ceny energii na MWh ciepła."""
+        r = lcoheat_for_technology("pompa_ciepla_gruntowa", SC, start_year=2030)
+        el_price = SC.price("energia_elektryczna", 2030)
+        # koszt energii na MWh ciepła ≈ cena/COP < cena
+        assert r.components["paliwo/energia"] < el_price
+
+    def test_kogeneracja_rejected(self):
+        with pytest.raises(ValueError, match="cieplne"):
+            lcoheat_for_technology("silnik_kogeneracyjny", SC)
+
+    def test_electricity_only_rejected(self):
+        with pytest.raises(ValueError, match="nie produkuje ciepła"):
+            lcoheat_for_technology("pv", SC)
+
+
+class TestLCOS:
+    KW = dict(
+        capex_pln=100e6,
+        energy_capacity_mwh=50.0,
+        round_trip_efficiency=0.6,
+        cycles_per_year=200.0,
+        charge_price_pln_per_mwh=400.0,
+    )
+
+    def test_charged_exceeds_discharged_by_round_trip(self):
+        s = lcos_for_storage(**self.KW)
+        assert s.annual_charged_mwh == pytest.approx(s.annual_discharged_mwh / 0.6)
+        assert s.annual_discharged_mwh == pytest.approx(50.0 * 200.0)
+
+    def test_more_cycles_lowers_lcos(self):
+        few = lcos_for_storage(**{**self.KW, "cycles_per_year": 100.0})
+        many = lcos_for_storage(**{**self.KW, "cycles_per_year": 400.0})
+        assert many.lcos_pln_per_mwh < few.lcos_pln_per_mwh
+
+    def test_lower_round_trip_raises_lcos(self):
+        """Niższy round-trip → więcej energii ładowania → wyższy LCOS."""
+        good = lcos_for_storage(**{**self.KW, "round_trip_efficiency": 0.9})
+        poor = lcos_for_storage(**{**self.KW, "round_trip_efficiency": 0.4})
+        assert poor.lcos_pln_per_mwh > good.lcos_pln_per_mwh
+
+    def test_components_sum_to_lcos(self):
+        s = lcos_for_storage(**self.KW)
+        assert sum(s.components.values()) == pytest.approx(s.lcos_pln_per_mwh, rel=1e-9)
+
+    def test_charge_cost_component_matches(self):
+        s = lcos_for_storage(**self.KW)
+        expected = s.annual_charged_mwh * 400.0 / s.annual_discharged_mwh
+        assert s.components["energia ładowania"] == pytest.approx(expected, rel=1e-9)
+
+    def test_invalid_round_trip_raises(self):
+        with pytest.raises(ValueError, match="round-trip"):
+            lcos_for_storage(**{**self.KW, "round_trip_efficiency": 1.5})
+
+    def test_zero_cycles_raises(self):
+        with pytest.raises(ValueError, match="cykli"):
+            lcos_for_storage(**{**self.KW, "cycles_per_year": 0.0})
 
 
 class TestCHPCapexAllocation:

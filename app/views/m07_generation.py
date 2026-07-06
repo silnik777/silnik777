@@ -8,6 +8,7 @@ import streamlit as st
 
 from core.generation import generation_technologies, technology_indicators
 from core.prices import all_scenarios
+from core.screening import merit_order, screening_curves
 
 _CLASS_COLORS = {
     "kopalne": "#555555",
@@ -84,7 +85,9 @@ def render() -> None:
     df = pd.DataFrame(rows)
     st.dataframe(df.round(2), hide_index=True, width="stretch")
 
-    tab1, tab2 = st.tabs(["Emisje jednostkowe", "Koszt paliwowy vs emisje"])
+    tab1, tab2, tab3 = st.tabs(
+        ["Emisje jednostkowe", "Koszt paliwowy vs emisje", "Merit order i screening"]
+    )
     with tab1:
         heat_df = df[df["g CO2/kWh ciepła"].notna()].sort_values("g CO2/kWh ciepła")
         fig = go.Figure(
@@ -127,6 +130,71 @@ def render() -> None:
             legend=dict(orientation="h"),
         )
         st.plotly_chart(fig2, config={"displaylogo": False})
+
+    with tab3:
+        el_keys = [t.key for t in selected if t.eta_el is not None]
+        if not el_keys:
+            st.info(
+                "Merit order i screening dotyczą technologii wytwarzania energii "
+                "elektrycznej — zaznacz kategorię „en. elektryczna” lub „kogeneracja”."
+            )
+        else:
+            wc1, wc2, wc3 = st.columns([1, 1, 1.3])
+            wacc_s = wc1.number_input("WACC (realny)", 0.01, 0.20, 0.07, 0.005, format="%.3f")
+            life_s = int(wc2.number_input("Okres analizy [lata]", 5, 40, 20))
+            include_ets = wc3.toggle(
+                "Uwzględnij koszt CO₂ (EU ETS)",
+                value=True,
+                help="Koszt krańcowy = paliwo/η + emisyjność × cena EUA (M5). "
+                "Wyłącz, by zobaczyć merit order bez ETS.",
+            )
+
+            st.markdown("##### Merit order (krótkookresowy koszt krańcowy)")
+            mo = merit_order(el_keys, sc, year, include_ets=include_ets)
+            mo_fig = go.Figure(
+                go.Bar(
+                    x=[e.name_pl for e in mo],
+                    y=[e.marginal_cost_pln_per_mwh for e in mo],
+                    marker_color="#1f77b4",
+                )
+            )
+            mo_fig.update_layout(
+                yaxis_title="koszt krańcowy [PLN/MWh]",
+                height=360,
+                title=f"Kolejność załączania ({year}, {sc.name_pl})",
+            )
+            st.plotly_chart(mo_fig, config={"displaylogo": False})
+            st.caption(
+                "Koszt krańcowy = paliwo/sprawność + CO2 (EUA); bez CAPEX/OPEX stałego. "
+                "OZE (koszt krańcowy 0) załączane pierwsze. Kogeneracja — metoda energetyczna."
+            )
+
+            st.markdown("##### Screening curves (roczny koszt na kW vs wykorzystanie)")
+            curves = screening_curves(
+                el_keys, sc, year, wacc=wacc_s, lifetime_years=life_s, include_ets=include_ets
+            )
+            sc_fig = go.Figure()
+            for c in curves:
+                sc_fig.add_trace(
+                    go.Scatter(
+                        x=[cf * 100 for cf in c.capacity_factors],
+                        y=c.cost_per_kw_year,
+                        mode="lines",
+                        name=c.name_pl,
+                    )
+                )
+            sc_fig.update_layout(
+                xaxis_title="współczynnik wykorzystania [%]",
+                yaxis_title="roczny koszt na kW [PLN/(kW·rok)]",
+                height=460,
+                legend=dict(orientation="h"),
+            )
+            st.plotly_chart(sc_fig, config={"displaylogo": False})
+            st.caption(
+                "Przecięcia krzywych = graniczny współczynnik wykorzystania, przy którym "
+                "opłaca się zamienić technologię (niski koszt stały → szczyt; niski koszt "
+                "zmienny → podstawa). Koszt stały = CAPEX/kW·(CRF + OPEX%)."
+            )
 
     with st.expander("📖 Założenia i wzory"):
         st.markdown("""

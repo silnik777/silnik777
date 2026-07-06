@@ -96,6 +96,15 @@ odpowiadać; kartę przeglądarki można zamknąć w dowolnym momencie.
   moc; przy niedoborze mocy wariant dostaje flagę ❌). Sekcja **„💰
   Opłacalność ekspandera”** liczy LCOE / NPV / IRR / okres zwrotu odzysku
   energii na ekspanderze (przyrostowo względem klasycznego JT).
+- **M10 — LCOHeat i LCOS**: oprócz LCOH (wodór) i LCOE (energia) policzysz
+  teraz **LCOHeat** (uśredniony koszt ciepła: kotły, pompy ciepła, kolektory)
+  oraz **LCOS** (uśredniony koszt magazynowania energii — dla linepacku/CAES
+  pojemność i round-trip weź z M12).
+- **M7 — merit order i screening curves**: zakładka „Merit order i screening"
+  szereguje technologie wg krótkookresowego kosztu krańcowego (kolejność
+  załączania) i rysuje krzywe rocznego kosztu na kW vs współczynnik
+  wykorzystania — przecięcia pokazują, co opłaca się do podstawy, a co do
+  szczytu.
 - **Straty gazu z awarii**: policz niekontrolowany wypływ przez otwór/
   rozszczelnienie — reżim (krytyczny/podkrytyczny), prędkość krytyczną,
   natężenie masowe i objętościowe (Nm³/h, Nm³/min). Opcjonalnie **blowdown**

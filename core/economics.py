@@ -485,3 +485,148 @@ def expander_station_economics(
         irr=irr(cash_flows),
         dpp_years=discounted_payback_years(cash_flows, wacc),
     )
+
+
+# --- LCOHeat (koszt uśredniony ciepła, technologie cieplne M7) ---------------
+
+
+def lcoheat_for_technology(
+    technology_key: str,
+    scenario: PriceScenario,
+    start_year: int = 2030,
+    capacity_kw_heat: float = 1000.0,
+    capacity_factor: float = 0.5,
+    wacc: float = DEFAULT_WACC,
+    lifetime_years: int = DEFAULT_LIFETIME_YEARS,
+    opex_pct_capex: float = 2.5,
+    include_ets: bool = True,
+) -> LevelizedCostResult:
+    """LCOHeat [PLN/MWh ciepła] dla technologii cieplnej z M7 (kategoria „cieplo").
+
+    Produkcja ciepła = moc cieplna × 8760 × cf. Koszt nośnika na MWh ciepła
+    = cena paliwa/energii ÷ sprawność cieplną (dla pomp ciepła η_heat = COP,
+    więc dzielimy przez COP); dla paliw kopalnych doliczany koszt CO2 (EUA,
+    zakres 1). Dla paliw darmowych (słońce) i energii elektrycznej emisje nie
+    są liczone bezpośrednio (energia el. — zakres 2, ujęty w cenie).
+
+    CAPEX = moc cieplna × CAPEX/kW (biblioteka M7 — nakłady na kW ciepła).
+    Kogeneracja obsługiwana przez alokację energetyczną w M10 (LCOE) i M13 —
+    tu wspieramy technologie stricte cieplne.
+
+    Raises:
+        ValueError: technologia nie produkuje ciepła albo jest kogeneracją.
+    """
+    from core.generation import generation_technologies, technology_indicators
+    from core.prices import eur_pln_rate
+
+    tech = generation_technologies()[technology_key]
+    if tech.eta_heat is None:
+        raise ValueError(f"Technologia '{technology_key}' nie produkuje ciepła.")
+    if tech.category != "cieplo":
+        raise ValueError(
+            f"LCOHeat wspiera technologie cieplne (kategoria „cieplo”); "
+            f"'{technology_key}' to '{tech.category}' — ciepło kogeneracji rozliczane "
+            "metodą energetyczną w M10/M13."
+        )
+
+    mwh_heat_year = capacity_kw_heat * 8760.0 * capacity_factor / 1e3
+    capex = capacity_kw_heat * tech.capex_eur_per_kw * eur_pln_rate()
+
+    fuel_costs, co2_costs = {}, {}
+    for t in range(1, lifetime_years + 1):
+        year = start_year + t - 1
+        ind = technology_indicators(tech, scenario, year)
+        if ind.fuel_cost_pln_per_mwh_heat:
+            fuel_costs[t] = ind.fuel_cost_pln_per_mwh_heat * mwh_heat_year
+        if include_ets and tech.fuel not in ("slonce", "wiatr", "energia_elektryczna"):
+            if ind.g_co2_per_kwh_heat:
+                t_co2 = mwh_heat_year * ind.g_co2_per_kwh_heat / 1e3  # g/kWh ≡ kg/MWh
+                co2_costs[t] = t_co2 / 1e3 * scenario.price_pln_per_t_co2("eua", year)
+
+    costs: dict[str, Mapping[int, float] | float] = {"OPEX": capex * opex_pct_capex / 100.0}
+    if fuel_costs:
+        costs["paliwo/energia"] = fuel_costs
+    if co2_costs:
+        costs["CO2 (EUA)"] = co2_costs
+
+    return levelized_cost(
+        capex_pln=capex,
+        output_per_year=mwh_heat_year,
+        costs_per_year=costs,
+        wacc=wacc,
+        lifetime_years=lifetime_years,
+    )
+
+
+# --- LCOS (koszt uśredniony magazynowania energii) --------------------------
+
+
+@dataclass(frozen=True)
+class StorageCostResult:
+    """LCOS z dekompozycją i kluczowymi wielkościami cyklu."""
+
+    lcos_pln_per_mwh: float
+    components: dict[str, float]  # CAPEX / OPEX / energia ładowania [PLN/MWh]
+    annual_discharged_mwh: float
+    annual_charged_mwh: float
+
+
+def lcos_for_storage(
+    capex_pln: float,
+    energy_capacity_mwh: float,
+    round_trip_efficiency: float,
+    cycles_per_year: float,
+    charge_price_pln_per_mwh: float,
+    wacc: float = DEFAULT_WACC,
+    lifetime_years: int = DEFAULT_LIFETIME_YEARS,
+    opex_pct_capex: float = 2.0,
+    depth_of_discharge: float = 1.0,
+) -> StorageCostResult:
+    """LCOS [PLN/MWh rozładowanej] — koszt uśredniony magazynowania energii.
+
+    LCOS = (CAPEX·CRF + OPEX + koszt ładowania) / energia rozładowana rocznie,
+    gdzie energia rozładowana = pojemność × głębokość × liczba cykli,
+    energia ładowania = rozładowana / sprawność round-trip (straty cyklu),
+    koszt ładowania = energia ładowania × cena energii.
+
+    Model dla linepacku/CAES (M12) i porównań z bateriami/PHES (M11):
+    pojemność i round-trip z M12; CAPEX i cykle — wejście użytkownika.
+
+    Args:
+        capex_pln: nakłady łączne na magazyn [PLN],
+        energy_capacity_mwh: pojemność energetyczna (na cykl),
+        round_trip_efficiency: sprawność round-trip (0–1),
+        cycles_per_year: liczba pełnych cykli rocznie,
+        charge_price_pln_per_mwh: cena energii ładowania (M5),
+        depth_of_discharge: głębokość rozładowania (0–1).
+
+    Raises:
+        ValueError: parametry poza zakresem fizycznym.
+    """
+    if energy_capacity_mwh <= 0 or cycles_per_year <= 0:
+        raise ValueError("Pojemność i liczba cykli muszą być dodatnie.")
+    if not 0.0 < round_trip_efficiency <= 1.0:
+        raise ValueError("Sprawność round-trip musi być w (0, 1].")
+    if not 0.0 < depth_of_discharge <= 1.0:
+        raise ValueError("Głębokość rozładowania musi być w (0, 1].")
+
+    discharged = energy_capacity_mwh * depth_of_discharge * cycles_per_year
+    charged = discharged / round_trip_efficiency
+    charge_cost = charged * charge_price_pln_per_mwh
+
+    res = levelized_cost(
+        capex_pln=capex_pln,
+        output_per_year=discharged,
+        costs_per_year={
+            "OPEX": capex_pln * opex_pct_capex / 100.0,
+            "energia ładowania": charge_cost,
+        },
+        wacc=wacc,
+        lifetime_years=lifetime_years,
+    )
+    return StorageCostResult(
+        lcos_pln_per_mwh=res.lcox,
+        components=res.components,
+        annual_discharged_mwh=discharged,
+        annual_charged_mwh=charged,
+    )
