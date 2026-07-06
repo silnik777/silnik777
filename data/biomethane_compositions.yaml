@@ -1,0 +1,54 @@
+meta:
+  description: >
+    Biblioteka typowych składów biometanu jako strumienia domieszki (M1).
+    Udziały molowe w %. Modele SUCHE (bez H2O/H2S/NH3 — poza zakresem
+    GERG-2008; zakładamy gaz po uzdatnianiu/osuszaniu). Składy orientacyjne —
+    do zastąpienia analizą rzeczywistą instalacji.
+  updated: "2026-07-06"
+
+compositions:
+  biometan_sieciowy:
+    name_pl: "Biometan sieciowy (uzdatniony, EN 16723)"
+    mole_percent:
+      CH4: 97.00
+      CO2: 2.00
+      N2: 0.80
+      O2: 0.20
+    source: "Typowy biometan wtłaczany do sieci (EN 16723-1)."
+    note: "Wartość orientacyjna — do weryfikacji."
+  biometan_rolniczy:
+    name_pl: "Biometan rolniczy (fermentacja, uzdatniony)"
+    mole_percent:
+      CH4: 96.50
+      CO2: 2.50
+      N2: 0.80
+      O2: 0.20
+    source: "Biogaz rolniczy po separacji CO2 (orientacyjnie)."
+    note: "Wartość orientacyjna — do weryfikacji."
+  biometan_sciekowy:
+    name_pl: "Biometan z osadów ściekowych (uzdatniony)"
+    mole_percent:
+      CH4: 97.50
+      CO2: 1.80
+      N2: 0.50
+      O2: 0.20
+    source: "Biogaz z oczyszczalni ścieków po uzdatnianiu (orientacyjnie)."
+    note: "Wartość orientacyjna — do weryfikacji."
+  biometan_wysypiskowy:
+    name_pl: "Biometan wysypiskowy (podwyższone inerty)"
+    mole_percent:
+      CH4: 94.00
+      CO2: 3.50
+      N2: 2.20
+      O2: 0.30
+    source: "Gaz składowiskowy po uzdatnianiu — wyższa zawartość N2/O2."
+    note: "Wartość orientacyjna — podwyższone inerty obniżają Wobbe."
+  biometan_czesciowo_uzdatniony:
+    name_pl: "Biometan częściowo uzdatniony (niska kaloryczność)"
+    mole_percent:
+      CH4: 88.00
+      CO2: 8.00
+      N2: 3.50
+      O2: 0.50
+    source: "Niepełne usunięcie CO2 — przykład wymagający propanowania."
+    note: "Wartość orientacyjna — Wobbe może spaść poniżej pasma E."

@@ -10,6 +10,13 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from core.blending import (
+    biomethane_compositions,
+    hydrogen_grade_composition,
+    hydrogen_grades,
+    max_hydrogen_for_group_e,
+    propane_enrichment_for_group_e,
+)
 from core.calorific import calorific_values, energy_density_at_state, quality_flags
 from core.composition import GasComposition, components_registry
 from core.config import load_data_file
@@ -25,6 +32,8 @@ from core.units import (
 @st.cache_data(show_spinner=False)
 def _wobbe_vs_h2_curve(base_fractions: tuple[tuple[str, float], ...], ref_key: str) -> pd.DataFrame:
     """Krzywe Ws i Hs w funkcji udziału H2 (0–100% mol) dla bazowego składu."""
+    from core.methane_number import methane_number
+
     base = GasComposition(fractions=base_fractions)
     ref = REFERENCE_CONDITIONS[ref_key]
     rows = []
@@ -37,24 +46,37 @@ def _wobbe_vs_h2_curve(base_fractions: tuple[tuple[str, float], ...], ref_key: s
                 "Ws [MJ/m³]": cal.wobbe_superior_mj_per_m3,
                 "Hs [MJ/m³]": cal.hs_mj_per_m3,
                 "Hi [MJ/m³]": cal.hi_mj_per_m3,
+                "MN": methane_number(comp) if comp.is_combustible else None,
             }
         )
     return pd.DataFrame(rows)
 
 
-def _composition_editor(default_key: str) -> GasComposition | None:
-    """Edytor składu molowego; zwraca skład albo None przy błędzie walidacji."""
+def _composition_editor(
+    default_key: str,
+    compositions: dict | None = None,
+    label: str = "Skład bazowy",
+    key_prefix: str = "editor",
+    help_text: str = "Predefiniowane składy z data/gas_compositions.yaml — edytowalne poniżej.",
+) -> GasComposition | None:
+    """Edytor składu molowego; zwraca skład albo None przy błędzie walidacji.
+
+    Uogólniony: ``compositions`` pozwala podać dowolną bibliotekę składów
+    (np. biometanu), a ``key_prefix`` odróżnia instancje edytora na stronie.
+    """
     registry = components_registry()
-    compositions = load_data_file("gas_compositions.yaml")["compositions"]
+    if compositions is None:
+        compositions = load_data_file("gas_compositions.yaml")["compositions"]
 
     options = list(compositions)
     labels = {k: compositions[k]["name_pl"] for k in options}
     selected = st.selectbox(
-        "Skład bazowy",
+        label,
         options,
         format_func=lambda k: labels[k],
         index=options.index(default_key) if default_key in options else 0,
-        help="Predefiniowane składy z data/gas_compositions.yaml — edytowalne poniżej.",
+        help=help_text,
+        key=f"{key_prefix}_sel",
     )
     base_pct = compositions[selected]["mole_percent"]
     if note := compositions[selected].get("note"):
@@ -76,7 +98,7 @@ def _composition_editor(default_key: str) -> GasComposition | None:
             ),
         },
         hide_index=True,
-        key=f"editor_{selected}",
+        key=f"{key_prefix}_{selected}",
     )
     percent = {
         key: float(edited.loc[key, "Udział [% mol]"])
@@ -90,7 +112,7 @@ def _composition_editor(default_key: str) -> GasComposition | None:
     except ValueError as exc:
         st.error(str(exc))
         if abs(total - 100.0) > 1e-4 and total > 0:
-            if st.button("Znormalizuj skład do 100%"):
+            if st.button("Znormalizuj skład do 100%", key=f"{key_prefix}_norm"):
                 normalized = {k: v / total * 100.0 for k, v in percent.items()}
                 return GasComposition.from_percent(normalized)
         return None
@@ -180,14 +202,57 @@ def render() -> None:
         base = _composition_editor("gaz_E_typowy")
 
         st.subheader("Domieszka wodoru")
+        grades = hydrogen_grades()
+        h2_grade_key = st.selectbox(
+            "Klasa czystości H₂",
+            list(grades),
+            format_func=lambda k: grades[k]["name_pl"],
+            help="Strumień wodoru z data/hydrogen_grades.yaml (zanieczyszczenia "
+            "śladowe mają pomijalny wpływ — klasa dla realizmu i dokumentacji źródła).",
+        )
         h2_pct = st.slider(
-            "Udział H2 w mieszaninie [% mol]",
+            "Udział H₂ w mieszaninie [% mol]",
             0.0,
             100.0,
             0.0,
             step=0.5,
-            help="Mieszanie molowe składu bazowego z czystym H2.",
+            help="Mieszanie molowe składu bazowego ze strumieniem H₂ wybranej klasy.",
         )
+
+        st.subheader("Domieszka biometanu")
+        bm_pct = st.slider(
+            "Udział biometanu [% mol]",
+            0.0,
+            100.0,
+            0.0,
+            step=0.5,
+            help="Drugi strumień domieszki: biometan sieciowy lub własny skład.",
+        )
+        bm_stream = None
+        if bm_pct > 0.0:
+            bm_source = st.radio(
+                "Skład biometanu",
+                ["z biblioteki", "własny"],
+                horizontal=True,
+            )
+            bm_lib = biomethane_compositions()
+            if bm_source == "z biblioteki":
+                bm_key = st.selectbox(
+                    "Typowy skład biometanu",
+                    list(bm_lib),
+                    format_func=lambda k: bm_lib[k]["name_pl"],
+                )
+                if note := bm_lib[bm_key].get("note"):
+                    st.caption(f"ℹ️ {note}")
+                bm_stream = GasComposition.from_percent(bm_lib[bm_key]["mole_percent"])
+            else:
+                bm_stream = _composition_editor(
+                    "biometan_sieciowy",
+                    compositions=bm_lib,
+                    label="Skład biometanu (edytowalny)",
+                    key_prefix="bm_editor",
+                    help_text="Typowe składy biometanu — edytowalne poniżej.",
+                )
 
         st.subheader("Punkt pracy")
         c1, c2 = st.columns(2)
@@ -213,8 +278,17 @@ def render() -> None:
 
     if base is None:
         st.stop()
+    if h2_pct + bm_pct > 100.0 + 1e-6:
+        st.error("Suma domieszek (H₂ + biometan) nie może przekraczać 100% mol.")
+        st.stop()
+    if bm_pct > 0.0 and bm_stream is None:
+        st.stop()  # błąd składu biometanu już zgłoszony w edytorze
 
-    composition = base.blend_with_hydrogen(h2_pct / 100.0)
+    h2_stream = hydrogen_grade_composition(h2_grade_key)
+    streams = [(base, (100.0 - h2_pct - bm_pct) / 100.0), (h2_stream, h2_pct / 100.0)]
+    if bm_pct > 0.0:
+        streams.append((bm_stream, bm_pct / 100.0))
+    composition = GasComposition.from_mixture(streams)
     reference = REFERENCE_CONDITIONS[ref_key]
 
     try:
@@ -230,10 +304,46 @@ def render() -> None:
     flags = quality_flags(composition, cal, h2_limit_mol_pct=float(h2_limit))
     mn = methane_number_assessment(composition) if composition.is_combustible else None
 
+    hlim = None
+    enrichment = None
+    if composition.is_combustible:
+        hlim = max_hydrogen_for_group_e(base, h2_stream, h2_policy_mole_pct=float(h2_limit))
+        enrichment = propane_enrichment_for_group_e(composition)
+
     with col_out:
         _verdict_banner(composition, flags, mn, cal)
         for w in props.warnings:
             st.warning(w)
+
+        if hlim is not None:
+            st.markdown("##### Granica domieszki H₂ i korekta")
+            st.metric(
+                "Maks. udział H₂ dla grupy E (gaz bazowy)",
+                f"{hlim.max_h2_mole_pct:.1f} % mol",
+                help=f"Ograniczenie wiążące: **{hlim.binding}**. Liczba metanowa "
+                f"ogranicza przy {hlim.mn_limited_pct:.0f}%, liczba Wobbego przy "
+                f"{hlim.wobbe_limited_pct:.0f}% (Ws czystego H₂ ≈ 48 MJ/m³ mieści się "
+                f"w paśmie E — dlatego zwykle wiąże MN lub próg %H₂).",
+            )
+            if h2_pct > hlim.max_h2_mole_pct + 1e-6:
+                st.warning(
+                    f"⚠️ Bieżąca domieszka H₂ = {h2_pct:g}% przekracza maksimum "
+                    f"{hlim.max_h2_mole_pct:.1f}% mol dla grupy E (wiąże: {hlim.binding})."
+                )
+
+        if enrichment is not None and enrichment.needed:
+            if enrichment.feasible:
+                writer = st.success if enrichment.mn_ok_after else st.warning
+                writer(
+                    f"🧪 **Propanowanie:** dodaj **{enrichment.propane_mole_pct:.2f}% mol "
+                    f"propanu (C₃H₈)** → liczba Wobbego "
+                    f"{enrichment.wobbe_before_mj_per_m3:.1f} → "
+                    f"{enrichment.wobbe_after_mj_per_m3:.1f} MJ/m³ (dolna granica pasma E). "
+                    f"Liczba metanowa {enrichment.mn_before:.0f} → {enrichment.mn_after:.0f}."
+                )
+                st.caption(enrichment.note)
+            else:
+                st.error("🧪 Propanowanie: " + enrichment.note)
 
     st.divider()
     tab_q, tab_props, tab_h2 = st.tabs(
@@ -325,17 +435,46 @@ def render() -> None:
         fig.add_trace(
             go.Scatter(x=curve["H2 [% mol]"], y=curve["Hi [MJ/m³]"], name="Hi", mode="lines")
         )
-        fig.add_vline(x=h2_pct, line_dash="dot", annotation_text=f"{h2_pct:g}% H2")
+        fig.add_trace(
+            go.Scatter(
+                x=curve["H2 [% mol]"],
+                y=curve["MN"],
+                name="liczba metanowa (oś prawa)",
+                mode="lines",
+                yaxis="y2",
+                line=dict(dash="dot"),
+            )
+        )
+        mn_limit = float(load_data_file("methane_number.yaml")["engine_limit"]["min_mn"])
+        fig.add_hline(
+            y=mn_limit,
+            line_dash="dash",
+            line_color="orange",
+            yref="y2",
+            annotation_text=f"limit MN {mn_limit:g}",
+            annotation_position="bottom right",
+        )
+        fig.add_vline(x=h2_pct, line_dash="dot", annotation_text=f"{h2_pct:g}% H₂")
+        if hlim is not None and hlim.max_h2_mole_pct < 100.0:
+            fig.add_vline(
+                x=hlim.max_h2_mole_pct,
+                line_dash="dash",
+                line_color="red",
+                annotation_text=f"max {hlim.max_h2_mole_pct:.0f}% ({hlim.binding})",
+                annotation_position="top right",
+            )
         fig.update_layout(
-            xaxis_title="Udział H2 [% mol]",
-            yaxis_title=f"MJ/m³ ({reference.name})",
+            xaxis_title="Udział H₂ [% mol]",
+            yaxis=dict(title=f"MJ/m³ ({reference.name})"),
+            yaxis2=dict(title="liczba metanowa", overlaying="y", side="right", range=[0, 105]),
             legend=dict(orientation="h"),
             height=450,
         )
         st.plotly_chart(fig, config={"displaylogo": False})
         st.caption(
-            "Kropkowana pionowa linia = bieżąca domieszka H₂. Ws pozostaje w widełkach E "
-            "nawet dla dużych udziałów H₂ — dlatego decyduje kontrola %H₂ i liczby metanowej."
+            "Czerwona linia = maksymalny udział H₂ dla grupy E (ograniczenie wiążące). "
+            "Ws (Wobbe) pozostaje w paśmie E nawet dla dużych udziałów H₂ — o granicy "
+            "decyduje zwykle **liczba metanowa** (oś prawa) albo scenariuszowy próg %H₂."
         )
 
     with st.expander("📖 Założenia i wzory"):
@@ -359,6 +498,19 @@ różnica < 0,1% (testy walidacyjne), metoda dokładniejsza dla mieszanin z H2.
 (ISO 6976), Z_air z CoolProp (walidacja: 0,99941 przy 0 °C — zgodne z normą).
 
 **Liczba Wobbego:** `Ws = Hs,V / √d` (analogicznie Wi).
+
+**Domieszki (H₂ + biometan):** skład końcowy = mieszanie molowe trzech
+strumieni (gaz bazowy + wodór wybranej klasy czystości + biometan z biblioteki
+lub własny). **Maks. udział H₂ dla grupy E** wyznaczany przez bisekcję dla
+każdego kryterium (Wobbe ≥ 45 MJ/m³, liczba metanowa ≥ limit, próg %H₂);
+wiąże najniższe. Uwaga: Ws czystego H₂ ≈ 48 MJ/m³ jest w paśmie E — dlatego
+Wobbe zwykle NIE ogranicza H₂, a wiąże liczba metanowa lub próg %H₂.
+
+**Propanowanie (korekta Wobbego):** gdy domieszka obniża Ws poniżej pasma E,
+narzędzie liczy (bisekcja) udział propanu C₃H₈ przywracający Ws do dolnej
+granicy. Propan podnosi Wobbe/kaloryczność, ale OBNIŻA liczbę metanową
+(MN(C₃H₈) ≈ 34) — wynik podaje MN po wzbogaceniu, bo korekta Wobbego nie
+gwarantuje pełnej zgodności E.
 
 **Wykładnik izentropy (rzeczywisty):** `κ = w²·ρ/p` (w — prędkość dźwięku);
 dla gazu doskonałego κ = cp/cv.

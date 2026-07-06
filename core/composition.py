@@ -178,3 +178,26 @@ class GasComposition:
     def blend_with_hydrogen(self, h2_mole_fraction: float) -> GasComposition:
         """Mieszanina z czystym H2 o zadanym udziale molowym H2 (0–1)."""
         return self.blend(GasComposition.pure("H2"), h2_mole_fraction)
+
+    @classmethod
+    def from_mixture(
+        cls, streams: list[tuple[GasComposition, float]]
+    ) -> GasComposition:
+        """Mieszanina molowa N strumieni: ``[(skład, udział_molowy), …]``.
+
+        Udziały muszą sumować się do 1 (tolerancja ``SUM_TOLERANCE``). Służy do
+        łączenia gazu bazowego z domieszkami (wodór o danej klasie czystości,
+        biometan) w jednym kroku, z zachowaniem bilansu molowego.
+        """
+        total = sum(f for _, f in streams)
+        if abs(total - 1.0) > SUM_TOLERANCE:
+            raise ValueError(
+                f"Udziały strumieni muszą sumować się do 1 (jest {total:.4f})."
+            )
+        mixed: dict[str, float] = {}
+        for comp, frac in streams:
+            if frac < 0.0:
+                raise ValueError("Udział strumienia nie może być ujemny.")
+            for key, x in comp.fractions:
+                mixed[key] = mixed.get(key, 0.0) + frac * x
+        return cls.from_fractions(mixed)

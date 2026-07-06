@@ -64,6 +64,15 @@ odpowiadać; kartę przeglądarki można zamknąć w dowolnym momencie.
   naraz: **„Jakość i kaloryczność”** (flagi normy + wartości kaloryczne),
   **„Właściwości termodynamiczne (p, T)”** (Z, gęstość, cp/cv, prędkość
   dźwięku, lepkość itd.) oraz **„Wpływ domieszki H₂”** (wykres Ws/Hs/Hi).
+- **M1 — domieszki, granica H₂ i propanowanie**: oprócz wodoru możesz dodać
+  **biometan** (drugi strumień — z biblioteki typowych składów albo własny
+  skład) oraz wybrać **klasę czystości wodoru**. Narzędzie pokazuje
+  **maksymalny udział H₂**, przy którym gaz nadal spełnia wymogi grupy E, i
+  które kryterium go ogranicza (liczba metanowa / próg %H₂ / Wobbe) — na
+  wykresie zaznaczone czerwoną linią. Jeśli domieszka obniży liczbę Wobbego
+  poniżej pasma E, narzędzie policzy **ile propanu (C₃H₈) dodać**, by ją
+  przywrócić — i uczciwie pokaże, że propan przy okazji obniża liczbę
+  metanową (kompromis Wobbe ↔ MN).
 - **M1 — liczba metanowa**: obok liczby Wobbego pokazywana jest liczba
   metanowa (odporność na spalanie stukowe w silnikach gazowych) z flagą
   limitu silnikowego. Spada z domieszką H₂; na osi CH₄/H₂ wynik jest ścisły.

@@ -1,0 +1,34 @@
+meta:
+  description: >
+    Klasy czystości wodoru (strumień domieszki dla M1). Udziały molowe w %.
+    Zanieczyszczenia śladowe (N2, O2) mają pomijalny wpływ na właściwości i
+    kaloryczność — klasy służą przede wszystkim realizmowi i dokumentacji
+    źródła wodoru. Para wodna (H2O) pomijana: strumień sieciowy jest osuszony.
+  updated: "2026-07-06"
+
+grades:
+  h2_idealny:
+    name_pl: "Wodór 100% (idealny — do porównań)"
+    mole_percent:
+      H2: 100.0
+    source: "Model referencyjny (czysty H2)."
+  h2_50:
+    name_pl: "Wodór 5.0 (99,999%) — ISO 14687 klasa D (ogniwa paliwowe)"
+    mole_percent:
+      H2: 99.999
+      N2: 0.001
+    source: "ISO 14687:2019 klasa D; zanieczyszczenia na poziomie ppm."
+  h2_elektrolizer:
+    name_pl: "Wodór elektrolityczny (99,97%, po osuszeniu)"
+    mole_percent:
+      H2: 99.97
+      O2: 0.02
+      N2: 0.01
+    source: "Typowy elektrolizer PEM/AEL po osuszaczu i deoxo (orientacyjnie)."
+  h2_techniczny:
+    name_pl: "Wodór techniczny (99,9%)"
+    mole_percent:
+      H2: 99.9
+      N2: 0.08
+      O2: 0.02
+    source: "Wodór techniczny klasy przemysłowej (orientacyjnie)."
