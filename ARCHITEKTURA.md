@@ -109,3 +109,29 @@ modułu źródłowego). Zaleta: audytowalność wartości; wada: brak przycisku
 Ścieżka `emisyjnosc_miksu` [t CO₂/MWh] jest technicznie „nośnikiem"
 w scenariuszach cen (wspólny mechanizm interpolacji). Semantycznie to
 wskaźnik, nie cena — konwencja przyjęta świadomie i opisana tutaj.
+
+## 4. Dobór bibliotek obliczeniowych (decyzja)
+
+**Właściwości termofizyczne:** CoolProp, backend HEOS. Dla mieszanin to
+model **GERG-2008** (ISO 20765-2, następca AGA8) — międzynarodowy wzorzec
+równania stanu dla gazu ziemnego i mieszanin z wodorem. **Kaloryczność /
+Wobbe / gęstość względna:** ISO 6976:2016.
+
+Decyzja: **pozostać przy CoolProp/GERG-2008 + ISO 6976** dla obecnego zakresu
+(gaz wysokometanowy E, domieszki H₂ 0–100%, biometan uzdatniony, powietrze/
+CAES). Uzasadnienie i rozważone alternatywy (audyt bibliotek):
+
+| Alternatywa | Werdykt |
+|---|---|
+| **pyaga8** (AGA8-DETAIL/GERG-2008) | Liczy TEN SAM standard co CoolProp HEOS — brak zysku fizyki. Przewaga tylko: ścisła zgodność AGA8-DETAIL do metrologii rozliczeniowej (poza zakresem narzędzia przesiewowego). |
+| **NeqSim** | Silna dla przemysłu gazowego (hydraty, mokry/kwaśny gaz), ale zależność od JVM (Java) — cięższe wdrożenie na Streamlit Cloud dla nieprogramisty. |
+| **REFPROP** (NIST) | Ten sam GERG-2008 dla gazu ziemnego + nowsze parametry binarne H₂; komercyjny (licencja). Marginalny zysk, realny koszt. |
+| **równania sześcienne** (PR/SRK) | Szybsze, ale mniej dokładne dla ρ/Z — krok wstecz dla gazu sieciowego. |
+| **fluids** (hydraulika M3) | Dobra biblioteka, ale nasze korelacje (Colebrook+Serghides) są zwalidowane analitycznie (ogólne równanie przepływu) — brak potrzeby zmiany. |
+| **thermo** (czysty Python) | Realnie potrzebne TYLKO gdyby w zakres wszedł surowy biogaz mokry (H₂O, H₂S, **NH₃** — poza GERG-2008). Wtedy dołożyć dla TEGO przypadku, bez ruszania reszty. |
+
+Wyzwalacze przyszłej zmiany (dziś niespełnione): (a) surowy mokry/kwaśny
+biogaz z NH₃ → `thermo` lub NeqSim dla tego modułu; (b) wymóg certyfikacji
+AGA8-DETAIL → `pyaga8` jako opcjonalny backend obok CoolProp. Oba do
+dołożenia punktowo — architektura `core/gas_properties.py` (jeden punkt
+liczenia właściwości) na to pozwala bez zmian w modułach M2–M15.
